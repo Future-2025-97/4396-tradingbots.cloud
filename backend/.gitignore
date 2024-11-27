@@ -1,0 +1,7 @@
+node_modules/
+config/production.json
+config/default.json
+client/build
+client/node_modules
+client/.eslintcache
+client/src/css/fontawesome-free-6.0.0-beta3-web

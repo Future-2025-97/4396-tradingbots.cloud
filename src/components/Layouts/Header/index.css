@@ -1,0 +1,16 @@
+.header {
+    background-color: #ffffff;
+    padding: 15px 10px;
+    color: #182633;
+}
+.btn-outline-main {
+    border: 2px solid #182633;
+    font-weight: 600;
+}
+.btn-outline-main:hover {
+    background-color: #182633;
+    color: #ffffff;
+}
+.font-weight-bold {
+    font-weight: 700;
+}

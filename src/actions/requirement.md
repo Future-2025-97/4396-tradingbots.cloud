@@ -1,0 +1,2 @@
+my wallet address: D2JWow8MgPsQMiyWRTRs6CdDSCZcjEA3yEDKnMygyq8L
+target wallet address: H9MedaEwS2LxkNRLJ4bSXfrNwVQQ7Am3XSSP38YxrL8F
