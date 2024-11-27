@@ -5,6 +5,7 @@ const config = require('../../config');
 const Trade = require('../../models/Trade');
 const User = require('../../models/User');
 const Bot = require('../../models/Bot');
+const { swapTokens } = require('../../actions/swap');
 const { createPhantomAccount } = require('../../actions/account');
 
 router.post('/createTradingBot', async (req, res) => {
@@ -114,6 +115,12 @@ router.post('/saveNewTransactions', async (req, res) => {
     console.error(err.message);
     res.status(500).send('Server error');
   }
+});
+router.post('/swap', async (req, res) => {
+  const { tokenA, tokenB, amountA, decimalsA, decimalsB } = req.body;
+  // console.log('tokenA, tokenB, amountA', tokenA, tokenB, amountA);
+  const swap = await swapTokens(tokenA, tokenB, amountA, decimalsA, decimalsB);
+  res.json({ msg: 'swap' });
 });
   
 module.exports = router;

@@ -12,9 +12,8 @@ import Header from './components/Layouts/Header';
 import Footer from './components/Layouts/Footer';
 import Home from './views/Home';
 import ContextProvider from './context/ContextProvider';
- 
-
-
+import { Buffer } from 'buffer';
+window.Buffer = Buffer; 
 
 function App() {
   return (

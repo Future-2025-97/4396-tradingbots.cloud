@@ -96,7 +96,7 @@ export const detectBalance = async (wallet) => {
                 return;
             }
             const tokenPriceResponse = await axios.get(`https://api.dexscreener.com/latest/dex/tokens/${token.address}`);
-            console.log('tokenPriceResponse---', tokenPriceResponse);
+            console.log('tokenPriceResponse---', tokenPriceResponse.data.pairs[0].pairAddress);
             
             
             if (tokenPriceResponse.data.pairs != null) {
