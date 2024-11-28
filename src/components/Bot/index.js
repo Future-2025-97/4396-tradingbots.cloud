@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { walletAddress, detectBalance, formatUnixTime } from '../../actions/wallet';
+import { walletAddress, detectBalanceWallet, formatUnixTime } from '../../actions/wallet';
 import api from '../../api';
 import './index.css';
 import DataTable from 'react-data-table-component';
@@ -172,12 +172,12 @@ const Bot = ({bot}) => {
     };
 
     const getDetectBalance = async () => {
-        const {accountTotalPrice: target_balance, tokens: target_tokens, solToken: _target_solToken} = await detectBalance(targetWallet);
-        const {accountTotalPrice: trade_balance, tokens: trade_tokens, solToken: _trade_solToken} = await detectBalance(tradeWallet);
+        const {accountTotalPrice: _target_balance, tokens: target_tokens, solToken: _target_solToken} = await detectBalanceWallet(targetWallet);
+        const {accountTotalPrice: _trade_balance, tokens: trade_tokens, solToken: _trade_solToken} = await detectBalanceWallet(tradeWallet);
         setTargetSolToken(_target_solToken);
         setTradeSolToken(_trade_solToken);
-        setTargetBalance(target_balance);
-        setTradeBalance(trade_balance);
+        setTargetBalance(_target_balance);
+        setTradeBalance(_trade_balance);
         setTargetTokens(target_tokens);
         setTradeTokens(trade_tokens);
         setLoading(false);
@@ -189,7 +189,7 @@ const Bot = ({bot}) => {
 
     useEffect(() => {
         getDetectBalance();
-        const interval = setInterval(() => getDetectBalance(), 3600000); // Poll every 20 seconds
+        const interval = setInterval(() => getDetectBalance(), 60000); // Poll every 20 seconds
 
         return () => clearInterval(interval); // Cleanup on unmount
     }, [targetWallet]);

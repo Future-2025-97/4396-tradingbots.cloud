@@ -117,10 +117,10 @@ router.post('/saveNewTransactions', async (req, res) => {
   }
 });
 router.post('/swap', async (req, res) => {
-  const { tokenA, tokenB, amountA, decimalsA, decimalsB } = req.body;
+  const { tokenA, tokenB, amount, decimalsA, decimalsB } = req.body;
   // console.log('tokenA, tokenB, amountA', tokenA, tokenB, amountA);
-  const swap = await swapTokens(tokenA, tokenB, amountA, decimalsA, decimalsB);
-  res.json({ msg: 'swap' });
+  const response = await swapTokens(tokenA, tokenB, amount, decimalsA, decimalsB);
+  res.json(response);
 });
   
 module.exports = router;

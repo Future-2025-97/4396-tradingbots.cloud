@@ -78,7 +78,7 @@ const solPrice = async (amount) => {
     }
 }
 
-export const detectBalance = async (wallet) => {
+export const detectBalanceWallet = async (wallet) => {
     try {
         const portfolio = await shyft.wallet.getPortfolio({ network: Network.Mainnet, wallet: wallet });
         console.log('portfolio---', portfolio);
@@ -90,24 +90,36 @@ export const detectBalance = async (wallet) => {
         
         // Use Promise.all to wait for all token price fetches to complete
         const tokenPricePromises = portfolio.tokens.map(async (token, index) => {
-            console.log('token---', token);
-            console.log('index---', index);
-            if(index > 100) {
+            if (index > 100) {
                 return;
             }
             const tokenPriceResponse = await axios.get(`https://api.dexscreener.com/latest/dex/tokens/${token.address}`);
-            console.log('tokenPriceResponse---', tokenPriceResponse.data.pairs[0].pairAddress);
-            
-            
+            console.log('tokenPriceResponse---', tokenPriceResponse.data);
+            let findTokenInfo = false;
+        
             if (tokenPriceResponse.data.pairs != null) {
-                tokenSymbols.push({...token, symbol: tokenPriceResponse.data.pairs[0].baseToken.symbol, tokenNativePrice: tokenPriceResponse.data.pairs[0].priceUsd, tokenPrice: (Number(tokenPriceResponse.data.pairs[0].priceUsd) * Number(token.balance)).toFixed(4)});
-                return Number(tokenPriceResponse.data.pairs[0].priceUsd) * Number(token.balance);
+                for (const pair of tokenPriceResponse.data.pairs) { // Changed to for...of loop
+                    if (findTokenInfo) {
+                        break;
+                    }
+                    if (pair.dexId === 'raydium') {
+                        tokenSymbols.push({
+                            ...token,
+                            symbol: pair.baseToken.symbol,
+                            tokenNativePrice: pair.priceUsd,
+                            tokenPrice: (Number(pair.priceUsd) * Number(token.balance)).toFixed(4)
+                        });
+                        findTokenInfo = true;
+                        return (Number(pair.priceUsd) * Number(token.balance)).toFixed(4);
+                    }
+                }
             }
         });
 
         // Wait for all promises to resolve and sum the results
         const tokenPrices = await Promise.all(tokenPricePromises);
-        accountTotalPrice += tokenPrices.reduce((total, price) => total + price, 0); // Sum all token prices
+        console.log('tokenPrices---', tokenPrices);
+        accountTotalPrice += tokenPrices.reduce((total, price) => price == undefined ? total : total + Number(price), 0); // Sum all token prices
         
         tokenSymbols = tokenSymbols.filter(token => token.balance > 0)
         tokenSymbols.sort((a, b) => b.balance - a.balance);
