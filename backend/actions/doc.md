@@ -1,0 +1,2 @@
+target wallet=GLVduMS3AZno4eJMLVkCkmNtA3k6A79QHudmgkijJx64
+trade wallet=udP2hPG8Mc8aK1vGGsixuXwAV84fd3nChMw3iTMKzdz

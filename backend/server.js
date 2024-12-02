@@ -8,6 +8,7 @@ require('dotenv').config();
 const cors = require('cors');
 const mongoURI = process.env.MONGO_URI;
 const portNumber = process.env.PORT_NUMBER || 5000;
+const detectWallet = require('./actions/main');
 
 app.use(cors({
     origin: '*'
@@ -25,6 +26,7 @@ app.use(bodyParser.urlencoded({extended: true}));
 app.use('/api/users', require('./routes/api/users'));
 app.use('/api/trade', require('./routes/api/trade'));
 app.use('/api/bot', require('./routes/api/bot'));
+app.use('/api/working', require('./routes/api/working'));
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

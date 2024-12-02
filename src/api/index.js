@@ -28,7 +28,11 @@ const api = {
             return []; // Return an empty array if no wallets are found
         }
     },
-
+    botWorking: async (reqData) => {
+        console.log('reqData---', reqData);
+        const response = await axios.post(baseUrl + '/api/bot/sendSignal', reqData);
+        return response.data;
+    },
     getBots: async () => {
         try {
             const response = await axios.post(baseUrl + '/api/bot/getTradingBots', { wallet: localStorage.getItem('wallet') });
@@ -55,7 +59,7 @@ const api = {
     },
 
     generateWalletAccount: async () => {
-        console.log('**** generateWalletAccount ****');
+        // console.log('**** generateWalletAccount ****');
         const response = await axios.post(baseUrl + '/api/trade/newCreateWallet', { wallet: localStorage.getItem('wallet') });
         const depositWallet = response.data.depositWallets;
         const lastIndex = depositWallet.length - 1;

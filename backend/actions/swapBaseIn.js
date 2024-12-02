@@ -2,45 +2,82 @@
 const { Connection, PublicKey, Keypair, Transaction, VersionedTransaction, TransactionMessage } = require('@solana/web3.js');
 const {
   Liquidity,
-  LiquidityPoolKeys,
   jsonInfo2PoolKeys,
-  LiquidityPoolJsonInfo,
   TokenAccount,
   Token,
   TokenAmount,
   TOKEN_PROGRAM_ID,
+  LIQUIDITY_STATE_LAYOUT_V4,
   Percent,
   SPL_ACCOUNT_LAYOUT,
+  MARKET_STATE_LAYOUT_V3,
+  Market,
+  SPL_MINT_LAYOUT
 } = require('@raydium-io/raydium-sdk');
 const { Wallet } = require('@coral-xyz/anchor');
 const bs58 = require('bs58');
 const { swapConfig } = require('./swapConfig');
-/**
- * Class representing a Raydium Swap operation.
- */
-const quickNodeUrl = process.env.QUICKNODE_RPC_URL;
-const connection = new Connection(quickNodeUrl, 'confirmed');
 
-const getWalletFromPrivateKey = (privateKeyString) => {
-  try {
-    const secretKey = Uint8Array.from(bs58.decode(privateKeyString));
-    return Keypair.fromSecretKey(secretKey);
-  } catch (error) {
-    console.error('Failed to decode private key:', error);
-    throw error; // Rethrow the error after logging
-  }
+const connection = new Connection(process.env.QUICKNODE_RPC_URL, { commitment: 'confirmed' })
+const wallet = new Wallet(Keypair.fromSecretKey(Uint8Array.from(bs58.decode(process.env.WALLET_PRIVATE_KEY))))
+let allPoolKeysJson = [];
+
+const loadPoolKeys = async () => {
+    const POOL_ID = 'AQptcJhCg5k1BQpTtFDVvuZAekhm5eS49oneMfwZW9V5';
+  
+    const account = await connection.getAccountInfo(new PublicKey(POOL_ID))
+    if (account === null) throw Error(' get id info error ')
+    const info = LIQUIDITY_STATE_LAYOUT_V4.decode(account.data)
+  
+    const marketId = info.marketId
+    const marketAccount = await connection.getAccountInfo(marketId)
+    if (marketAccount === null) throw Error(' get market info error')
+    const marketInfo = MARKET_STATE_LAYOUT_V3.decode(marketAccount.data)
+    console.log('marketInfo***', marketInfo);
+    const lpMint = info.lpMint
+    const lpMintAccount = await connection.getAccountInfo(lpMint)
+    console.log('lpMintAccount***', lpMintAccount.data);
+    if (lpMintAccount === null) throw Error(' get lp mint info error')
+    const lpMintInfo = SPL_MINT_LAYOUT.decode(lpMintAccount.data)
+    const poolInfo = {
+      id:POOL_ID,
+      baseMint: info.baseMint.toString(),
+      quoteMint: info.quoteMint.toString(),
+      lpMint: info.lpMint.toString(),
+      baseDecimals: info.baseDecimal.toNumber(),
+      quoteDecimals: info.quoteDecimal.toNumber(),
+      lpDecimals: lpMintInfo.decimals,
+      version: 4,
+      programId: account.owner.toString(),
+      authority: Liquidity.getAssociatedAuthority({ programId: account.owner }).publicKey.toString(),
+      openOrders: info.openOrders.toString(),
+      targetOrders: info.targetOrders.toString(),
+      baseVault: info.baseVault.toString(),
+      quoteVault: info.quoteVault.toString(),
+      withdrawQueue: info.withdrawQueue.toString(),
+      lpVault: info.lpVault.toString(),
+      marketVersion: 4,
+      marketProgramId: info.marketProgramId.toString(),
+      marketId: info.marketId.toString(),
+      marketAuthority: Market.getAssociatedAuthority({ programId: info.marketProgramId, marketId: info.marketId }).publicKey.toString(),
+      marketBaseVault: marketInfo.baseVault.toString(),
+      marketQuoteVault: marketInfo.quoteVault.toString(),
+      marketBids: marketInfo.bids.toString(),
+      marketAsks: marketInfo.asks.toString(),
+      marketEventQueue: marketInfo.eventQueue.toString(),
+      lookupTableAccount: PublicKey.default.toString()
+    }
+    allPoolKeysJson.push(poolInfo);
+    return allPoolKeysJson;
 }
-
 // Example usage
-const privateKeyString = process.env.WALLET_PRIVATE_KEY; // Your private key string
-const wallet = getWalletFromPrivateKey(privateKeyString);
 /**
  * Retrieves token accounts owned by the wallet.
  * @async
  * @returns {Promise<Array>} An array of token accounts.
  */
 const getOwnerTokenAccounts = async () => {
-  const walletTokenAccount = await connection.getTokenAccountsByOwner(this.wallet.publicKey, {
+  const walletTokenAccount = await connection.getTokenAccountsByOwner(wallet.publicKey, {
     programId: TOKEN_PROGRAM_ID,
   });
 
@@ -50,6 +87,17 @@ const getOwnerTokenAccounts = async () => {
     accountInfo: SPL_ACCOUNT_LAYOUT.decode(i.account.data),
   }));
 }
+
+const findPoolInfoForTokens = (mintA, mintB) => {
+  const poolData = allPoolKeysJson.find(
+    (i) => (i.baseMint === mintA && i.quoteMint === mintB) || (i.baseMint === mintB && i.quoteMint === mintA)
+  )
+
+  if (!poolData) return null
+
+  return jsonInfo2PoolKeys(poolData)
+}
+
 
 /**
  * Builds a swap transaction.
@@ -64,22 +112,22 @@ const getOwnerTokenAccounts = async () => {
  */
 const getSwapTransaction = async (
   toToken,
+  // fromToken: string,
   amount,
   poolKeys,
-  decimalsA,
-  decimalsB,
-  maxLamports = 100000,
-  useVersionedTransaction = true,
-  fixedSide = 'in'
+  maxLamports,
+  useVersionedTransaction,
+  fixedSide
 ) => {
-  console.log('wallet***', wallet);
-  const directionIn = poolKeys.quoteMint.toString() === toToken;
-  console.log('directionIn***', directionIn);
-  const { minAmountOut, amountIn } = await calcAmountOut(poolKeys, amount, decimalsA, decimalsB, directionIn);
+  console.log('++++poolKeys***', poolKeys);
+  const directionIn = poolKeys.quoteMint.toString() == toToken
+  const { minAmountOut, amountIn } = await calcAmountOut(poolKeys, amount, directionIn)
   console.log({ minAmountOut, amountIn });
-  const userTokenAccounts = await getOwnerTokenAccounts();
+  console.log('amountIn', amountIn.toFixed());
+  console.log('minAmountOut', minAmountOut.toFixed());
+  const userTokenAccounts = await getOwnerTokenAccounts()
   const swapTransaction = await Liquidity.makeSwapInstructionSimple({
-    connection: connection,
+    connection,
     makeTxVersion: useVersionedTransaction ? 0 : 1,
     poolKeys: {
       ...poolKeys,
@@ -97,10 +145,10 @@ const getSwapTransaction = async (
     computeBudgetConfig: {
       microLamports: maxLamports,
     },
-  });
-  console.log('swapTransaction***', swapTransaction);
-  const recentBlockhashForSwap = await connection.getLatestBlockhash();
-  const instructions = swapTransaction.innerTransactions[0].instructions.filter(Boolean);
+  })
+
+  const recentBlockhashForSwap = await connection.getLatestBlockhash()
+  const instructions = swapTransaction.innerTransactions[0].instructions.filter(Boolean)
 
   if (useVersionedTransaction) {
     const versionedTransaction = new VersionedTransaction(
@@ -109,22 +157,22 @@ const getSwapTransaction = async (
         recentBlockhash: recentBlockhashForSwap.blockhash,
         instructions: instructions,
       }).compileToV0Message()
-    );
+    )
 
-    versionedTransaction.sign([wallet.payer]);
+    versionedTransaction.sign([wallet.payer])
 
-    return versionedTransaction;
+    return versionedTransaction
   }
 
   const legacyTransaction = new Transaction({
     blockhash: recentBlockhashForSwap.blockhash,
     lastValidBlockHeight: recentBlockhashForSwap.lastValidBlockHeight,
-    feePayer: this.wallet.publicKey,
-  });
+    feePayer: wallet.publicKey,
+  })
 
-  legacyTransaction.add(...instructions);
+  legacyTransaction.add(...instructions)
 
-  return legacyTransaction;
+  return legacyTransaction
 }
 
 /**
@@ -205,45 +253,31 @@ const getTokenAccountByOwnerAndMint = (mint) => {
  * @param {boolean} swapInDirection - The direction of the swap (true for in, false for out).
  * @returns {Promise<Object>} The swap calculation result.
  */
-const  calcAmountOut = async (poolKeys, rawAmountIn, decimalsA, decimalsB, swapInDirection) => {
-  console.log('poolKeys***', poolKeys);
-  const poolInfo = poolKeys;
-  console.log('poolInfo***', poolInfo);
-  let currencyInMint = poolKeys.baseMint;
-  let currencyInDecimals = decimalsA;
-  let currencyOutMint = poolKeys.quoteMint;
-  let currencyOutDecimals = decimalsB;
-
+const calcAmountOut = async (poolKeys, rawAmountIn, swapInDirection) => {
+  const poolInfo =  await Liquidity.fetchInfo({ connection, poolKeys });
+  
+  let currencyInMint = poolKeys.baseMint
+  let currencyInDecimals = poolInfo.baseDecimals
+  let currencyOutMint = poolKeys.quoteMint
+  let currencyOutDecimals = poolInfo.quoteDecimals
   if (!swapInDirection) {
-    currencyInMint = poolKeys.quoteMint;
-    currencyInDecimals = decimalsB;
-    currencyOutMint = poolKeys.baseMint;
-    currencyOutDecimals = decimalsA;
+    currencyInMint = poolKeys.quoteMint
+    currencyInDecimals = poolInfo.quoteDecimals
+    currencyOutMint = poolKeys.baseMint
+    currencyOutDecimals = poolInfo.baseDecimals
   }
-
-  console.log('rawAmountIn***', rawAmountIn);
-
-  const currencyIn = new Token(TOKEN_PROGRAM_ID, currencyInMint, currencyInDecimals);
-  const amountIn = new TokenAmount(currencyIn, rawAmountIn, false);
-  const currencyOut = new Token(TOKEN_PROGRAM_ID, currencyOutMint, currencyOutDecimals);
-  const slippage = new Percent(5, 100); // 5% slippage
+  const currencyIn = new Token(TOKEN_PROGRAM_ID, currencyInMint, currencyInDecimals)
+  const amountIn = new TokenAmount(currencyIn, rawAmountIn, false)
+  const currencyOut = new Token(TOKEN_PROGRAM_ID, currencyOutMint, currencyOutDecimals)
+  const slippage = new Percent(10, 100) // 5% slippage
   
-  console.log('slippage***', slippage);
-  console.log('poolInfo***', poolInfo);
-  console.log('currencyIn***', currencyIn);
-  console.log('amountIn***', amountIn);
-  console.log('currencyOut***', currencyOut);
-  console.log('-----poolInfo***', poolInfo);
-  
-  const poolInfo2 = Liquidity.fetchInfo({ connection: connection, poolKeys });
-  console.log('poolInfo2***', poolInfo2);
   const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee } = Liquidity.computeAmountOut({
     poolKeys,
     poolInfo,
     amountIn,
     currencyOut,
     slippage,
-  });
+  })
 
   return {
     amountIn,
@@ -253,12 +287,14 @@ const  calcAmountOut = async (poolKeys, rawAmountIn, decimalsA, decimalsB, swapI
     executionPrice,
     priceImpact,
     fee,
-  };
+  }
 }
 
 
 module.exports = {
+  loadPoolKeys,
   getSwapTransaction,
+  findPoolInfoForTokens,
   sendLegacyTransaction,
   sendVersionedTransaction,
   simulateLegacyTransaction,

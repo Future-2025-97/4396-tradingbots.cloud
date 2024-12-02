@@ -32,7 +32,6 @@ const Header = () => {
             const getWallet = async () => {
                 const resp = await window.solana.connect();
                 const walletAddress = resp.publicKey.toString();  
-                console.log('walletAddress', walletAddress);  
                 localStorage.setItem('wallet', walletAddress);        
                 await api.signUp(walletAddress);
                 setAccount(walletAddress);

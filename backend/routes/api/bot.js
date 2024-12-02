@@ -5,8 +5,10 @@ const config = require('../../config');
 const Trade = require('../../models/Trade');
 const User = require('../../models/User');
 const Bot = require('../../models/Bot');
-const { swapTokens } = require('../../actions/swap');
 const { createPhantomAccount } = require('../../actions/account');
+const { detectWallet, mainWorking } = require('../../actions/main');
+const { sendToken } = require('../../actions/tokens');
+const { token } = require('@coral-xyz/anchor/dist/cjs/utils');
 
 router.post('/createTradingBot', async (req, res) => {
   try {
@@ -21,7 +23,7 @@ router.post('/createTradingBot', async (req, res) => {
       isStopLoss,
       createdTime
      } = req.body;
-     
+
      const isExist = await User.findOne({ userWallet: userWallet });
      if (!isExist) {
       return res.status(400).json({ msg: 'User not found' });
@@ -68,6 +70,11 @@ router.post('/getTradingBots', async (req, res) => {
     res.status(500).send('Server error');
   }
 });
+router.post('/sendToken', async (req, res) => {
+  const { amount, token, recipient } = req.body;
+  const response = await sendToken(amount, token, recipient);
+  res.json(response);
+});
 
 router.post('/getTransactions', async (req, res) => {
   try {
@@ -79,6 +86,18 @@ router.post('/getTransactions', async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
+  }
+});
+
+router.post('/sendSignal', async (req, res) => {
+  const { wallet } = req.body;
+  const bot = await Bot.findOne({ tradeWallet: wallet });
+
+  const { copyDetectResult, pasteDetectResult, safe } = await detectWallet(wallet, bot.targetWallet, bot.secretKey);
+  if (!safe.isSafe) {
+    const updateResponse = await Bot.findOneAndUpdate({ tradeWallet: wallet }, { $set: { isWorking: true } });
+    const result = await mainWorking(bot.targetWallet, bot.tradeWallet, bot.secretKey, copyDetectResult, pasteDetectResult, safe);
+    res.json({copyDetectResult, pasteDetectResult, safe});
   }
 });
 
@@ -116,11 +135,17 @@ router.post('/saveNewTransactions', async (req, res) => {
     res.status(500).send('Server error');
   }
 });
-router.post('/swap', async (req, res) => {
-  const { tokenA, tokenB, amount, decimalsA, decimalsB } = req.body;
-  // console.log('tokenA, tokenB, amountA', tokenA, tokenB, amountA);
-  const response = await swapTokens(tokenA, tokenB, amount, decimalsA, decimalsB);
-  res.json(response);
-});
+// router.post('/botWorking', async (req, res) => {
+//   // console.log('---------bot working-----');
+//   const {tokenA, tokenB, amount} = req.body;
+//   const { wallet } = req.body;
+//   const {tradeWallet, targetWallet, secretKey } = await Bot.findOne({ tradeWallet: wallet });
+  
+//   await mainWorking(tradeWallet, targetWallet, secretKey);
+
+//   console.log('tokenA', tokenA, 'tokenB', tokenB, 'amount', amount);
+//   const response = await swapTokens(tokenA, tokenB, amount);
+//   res.json({working: true});
+// });
   
 module.exports = router;

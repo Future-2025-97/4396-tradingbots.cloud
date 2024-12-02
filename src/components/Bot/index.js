@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { walletAddress, detectBalanceWallet, formatUnixTime } from '../../actions/wallet';
+import { walletAddress, detectBalanceWallet, detectWallet, formatUnixTime } from '../../actions/wallet';
 import api from '../../api';
 import './index.css';
 import DataTable from 'react-data-table-component';
+import { FaCheckCircle } from 'react-icons/fa';
 import customStyles from './CustomStyle';
 // import {
 //     TokenAccount,
@@ -40,11 +41,7 @@ const columns = [
         name: 'Balance',
         selector: row => <div>$ {row.tokenPrice}</div>,
         // width: '150px'
-    },
-    // {
-    //     name: 'Status',
-    //     selector: row => row.status,
-    // }
+    }
 ];
 
 const Bot = ({bot}) => {
@@ -58,10 +55,10 @@ const Bot = ({bot}) => {
         isTakeProfit,
         isStopLoss,
         targetWallet,
+        isWorking,
+        secretKey
     } = bot;
 
-    const [showTransactions, setShowTransactions] = useState(false);
-    const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [targetBalance, setTargetBalance] = useState(0);
     const [tradeBalance, setTradeBalance] = useState(0);
@@ -70,127 +67,58 @@ const Bot = ({bot}) => {
     const [tradeTokens, setTradeTokens] = useState([]);
     const [targetSolToken, setTargetSolToken] = useState({});
     const [tradeSolToken, setTradeSolToken] = useState({});
-    
-    const fetchTransactions = async () => {
-        const url = `https://api.shyft.to/sol/v1/wallet/transaction_history?wallet=${targetWallet}&network=${network}&tx_num=${tx_num}`;
-        setLoading(true);
-        const myHeaders = new Headers();
-        myHeaders.append("Content-Type", "application/json");
-        myHeaders.append("x-api-key", API_KEY);
+    const [tradeTotalTokenPrice, setTradeTotalTokenPrice] = useState(0);
+    const [targetTotalTokenPrice, setTargetTotalTokenPrice] = useState(0);
+    const [isSafe, setIsSafe] = useState(false);
 
-        const requestOptions = {
-            method: 'GET',
-            headers: myHeaders
-        };
-
-        try {
-            const response = await fetch(`${url}`, requestOptions);
-            const result = await response.json();
-            const result_query = result.result;
-            const new_transactions = [];
-            result_query.map(result => {
-                
-                if (result.status.toLowerCase() === "success" && result.protocol && result.protocol.name && result.protocol.name.toLowerCase().includes("raydium")) {
-                    // The string "raydium" is found in transaction.protocol.name
-                    const new_transaction = {
-                        account: result.signers[0],
-                        status: result.status,
-                        type: result.type,
-                        signature: result.signatures[0],
-                        tokenAddressA: result.token_balance_changes[0].address,
-                        tokenAddressB: result.token_balance_changes[1].address,
-                        tokenAmountA: result.token_balance_changes[0].change_amount,
-                        tokenAmountB: result.token_balance_changes[1].change_amount,
-                        tokenDecimalsA: result.token_balance_changes[0].decimals,
-                        tokenDecimalsB: result.token_balance_changes[1].decimals,
-                    }
-                    new_transactions.push(new_transaction);
-                    setShowTransactions(true);
-                } else {
-                    // The string "raydium" is not found
-                    console.log("The protocol name is not raydium.");
-                }                      
-            });
-            const res = await api.saveNewTransactions(bot._id, new_transactions);
-        } catch (error) {
-            console.error("Error fetching transactions:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const updateTradeWalletTokens = async (targetTokens, tradeTokens, position) => {
-        const updatedTradeTokens = {};
-    
-        // Calculate new amounts for each token in the target wallet
-        for (const token of targetTokens) {
-            console.log('token---', token);
-            const { address, balance } = token; // Assuming token has address and amount properties
-            const newAmount = balance / position;
-            console.log('newAmount---', newAmount);
-            // Check if the trade wallet has enough balance for the token
-            console.log('tradeTokens---', tradeTokens);
-            const tradeTokenBalance = tradeTokens.find(t => t.address === address)?.balance || 0;
-            console.log('tradeTokenBalance---', tradeTokenBalance);
-            if (tradeTokenBalance < newAmount) {
-                // Perform swap to acquire the necessary amount
-                const amountToSwap = newAmount - tradeTokenBalance;
-                // await performSwap(address, amountToSwap); // Implement this function to handle the swap
+    const updateTradeWalletTokens = async (tradeWallet) => {
+        if(!isSafe) {
+            const reqData = {
+                wallet: tradeWallet
             }
-    
-            // Update the trade token amount
-            updatedTradeTokens[address] = newAmount;
+            const res = await api.botWorking(reqData);
+            console.log('res---', res);
         }
-    
-        // Update the state with the new trade tokens
-        // setTradeTokens(prevTokens => {
-        //     return prevTokens.map(token => {
-        //         if (updatedTradeTokens[token.address] !== undefined) {
-        //             return { ...token, amount: updatedTradeTokens[token.address] };
-        //         }
-        //         return token;
-        //     });
-        // });
     };
-    const updateTradeWalletNativeToken = async () => {
-        const {balance} = targetSolToken; 
-        console.log('targetSolToken---', targetSolToken);
-        console.log('tradeSolToken---', tradeSolToken);
-        const newAmount = balance / positionValue;
-        console.log('newAmount---', newAmount);
-        if (Math.abs(newAmount - tradeSolToken.balance) > tradeSolToken.balance * 0.003) {
-            const availableSolAmountToSwap = newAmount - tradeSolToken.balance;
-            console.log('availableSolAmountToSwap---', availableSolAmountToSwap);
-            // await performSwap(address, amountToSwap); // Implement this function to handle the swap
-        }
-    }
 
     // Call this function after fetching the target wallet's balances
     const getUpdatedBalances = async () => {    
-        await updateTradeWalletNativeToken();
-        // await updateTradeWalletTokens(targetTokens, tradeTokens, positionValue);
+        await updateTradeWalletTokens(tradeWallet);
     };
 
     const getDetectBalance = async () => {
-        const {accountTotalPrice: _target_balance, tokens: target_tokens, solToken: _target_solToken} = await detectBalanceWallet(targetWallet);
-        const {accountTotalPrice: _trade_balance, tokens: trade_tokens, solToken: _trade_solToken} = await detectBalanceWallet(tradeWallet);
-        setTargetSolToken(_target_solToken);
-        setTradeSolToken(_trade_solToken);
-        setTargetBalance(_target_balance);
-        setTradeBalance(_trade_balance);
-        setTargetTokens(target_tokens);
-        setTradeTokens(trade_tokens);
+        const {copyDetectResult, pasteDetectResult, safe} = await detectWallet(targetWallet, tradeWallet);
+        console.log('copyDetectResult---', copyDetectResult);
+        console.log('pasteDetectResult---', pasteDetectResult);
+        // console.log('response---', response);
+        // const {accountTotalPrice: _target_balance, tokens: _target_tokens, solToken: _target_solToken} = await detectBalanceWallet(targetWallet);
+        // const {accountTotalPrice: _trade_balance, tokens: _trade_tokens, solToken: _trade_solToken} = await detectBalanceWallet(tradeWallet);
+        // console.log('target_tokens---', _target_balance);
+        // console.log('trade_tokens---', _trade_balance);
+        setTargetBalance(copyDetectResult.totalTargetPrice);
+        setTradeBalance(pasteDetectResult.totalTradePrice);
+        setTargetSolToken(copyDetectResult.solTargetToken);
+        setTradeSolToken(pasteDetectResult.solTradeToken);
+        setTargetTotalTokenPrice(copyDetectResult.totalTargetTokenPrice);
+        setTradeTotalTokenPrice(pasteDetectResult.totalTradeTokenPrice);
+        setTargetTokens(copyDetectResult.updateCopyToken);
+        setTradeTokens(pasteDetectResult.updatePasteToken);
+        setIsSafe(safe);
         setLoading(false);
         getUpdatedBalances();
     }
     useEffect(() => {
-        setPositionValue((targetBalance / tradeBalance).toFixed(2));
-    }, [targetBalance, tradeBalance]);
+        if(tradeTokens.length === 0) {
+            setPositionValue((targetTotalTokenPrice / (tradeBalance - process.env.REACT_APP_SOL_NORMAL_PRICE_FOR_SWAP)).toFixed(2));
+        } else {
+            setPositionValue((targetTotalTokenPrice / tradeTotalTokenPrice).toFixed(2));
+        }
+    }, [targetTotalTokenPrice, tradeTotalTokenPrice]);
 
     useEffect(() => {
         getDetectBalance();
-        const interval = setInterval(() => getDetectBalance(), 60000); // Poll every 20 seconds
-
+        const interval = setInterval(() => getDetectBalance(), 60000); // Poll every 2mins
+        // console.log('isWorking---', isWorking);
         return () => clearInterval(interval); // Cleanup on unmount
     }, [targetWallet]);
 
@@ -209,14 +137,13 @@ const Bot = ({bot}) => {
                         <h5><span className='text-warning'>User Wallet:</span> {walletAddress(userWallet)}</h5>
                     </div>
                 </div>
-                
                 <div className='text-white d-flex justify-content-between'>
-                    <h5><span className='text-warning'>Trade Wallet:</span> {walletAddress(tradeWallet)}</h5>
-                    <h5><span className='text-warning'>Balance:</span> {tradeBalance} $</h5>
+                    <h5><span className='text-primary'>Target Wallet:</span> {walletAddress(targetWallet)}</h5>
+                    <h5><span className='text-primary'>Balance:</span> {targetBalance.toFixed(3)} $</h5>
                 </div>
                 <div className='text-white d-flex justify-content-between'>
-                    <h5><span className='text-warning'>Target Wallet:</span> {walletAddress(targetWallet)}</h5>
-                    <h5><span className='text-warning'>Balance:</span> {targetBalance} $</h5>
+                    <h5><span className='text-warning'>Trade Wallet:</span> {walletAddress(tradeWallet)}</h5>
+                    <h5><span className='text-warning'>Balance:</span> {tradeBalance.toFixed(3)} $</h5>
                 </div>
                 <div className='text-white d-flex justify-content-between'>
                     <h5><span className='text-warning'>Position Value:</span> {positionValue}</h5>
@@ -246,52 +173,63 @@ const Bot = ({bot}) => {
                     </div>
                 </div>  
                 {tradeSolToken && targetSolToken && (
-                    <>
-                        <div className='text-white d-flex justify-content-start my-3'><h3>SOL Price: <span className='text-warning font-weight-bold'>{targetSolToken.nativePrice}</span> $</h3></div>
-                        <div className='d-flex justify-content-start'>
-                            <div>
-                                <h5><span className='text-primary'>Target Wallet:</span></h5>
-                                <h5><span className='text-white'> {targetSolToken.balance} {targetSolToken.symbol}</span></h5>
-                                <h5><span className='text-white'>{targetSolToken.tokenPrice} $</span></h5>
-                            </div>
-                            <div className='mx-4'>
-                                <h5><span className='text-warning'>Trade Wallet:</span></h5>
-                                <h5><span className='text-white'>{tradeSolToken.balance} {tradeSolToken.symbol}</span></h5>
-                                <h5><span className='text-white'>{tradeSolToken.tokenPrice} $</span></h5>
+                    <div className='d-flex justify-content-between'>
+                        <div>
+                            <div className='text-white d-flex justify-content-start my-3'><h3>SOL Price: <span className='text-warning font-weight-bold'>{targetSolToken.nativePrice}</span> $</h3></div>
+                            <div className='d-flex justify-content-start'>
+                                <div>
+                                    <h5><span className='text-primary'>Target Wallet:</span></h5>
+                                    <h5><span className='text-white'> {loading ? <div className='spinner-border text-warning' role='status'></div> : targetSolToken.amount.toFixed(3)} SOL</span></h5>
+                                    <h5><span className='text-white'>{loading ? <div className='spinner-border text-warning' role='status'></div> : targetSolToken.price.toFixed(3)} $</span></h5>
+                                </div>
+                                <div className='mx-4'>
+                                    <h5><span className='text-warning'>Trade Wallet:</span></h5>
+                                    <h5><span className='text-white'>{loading ? <div className='spinner-border text-warning' role='status'></div> : tradeSolToken.amount.toFixed(3)} SOL</span></h5>
+                                    <h5><span className='text-white'>{loading ? <div className='spinner-border text-warning' role='status'></div> : tradeSolToken.price.toFixed(3)} $</span></h5>
+                                </div>
                             </div>
                         </div>
-                    </>
+                        <div className='d-flex justify-content-center'>
+                            <div className='text-warning mx-2 mt-1'>Bot Status:</div> {isSafe == false ? <div className='spinner-border text-warning' role='status'></div> : <div className='text-success align-items-center'><FaCheckCircle size={40} /></div>}
+                        </div>
+                    </div>
                 )}
 
                 <hr className='text-white'/>
                 <div className='d-flex justify-content-start'>
                     <div>
-                        <h2><span className='text-white'>Target Wallet:</span></h2>
+                        <h2><span className='text-primary'>Target Wallet:</span></h2>
                     </div>
                 </div>
                 {loading ? <div className='text-center'><div className='spinner-border text-warning' role='status'></div></div> : (
-                    <DataTable
-                        columns={columns}
-                        data={targetTokens}
-                        customStyles={customStyles}
-                        pagination
-                        responsive
-                    />
+                    <div className='text-white'>
+                        <div className='text-primary'>Total Token Price: <span className='text-white font-weight-bold'>{targetTotalTokenPrice.toFixed(3)} $ </span></div>
+                        <DataTable
+                            columns={columns}
+                            data={targetTokens}
+                            customStyles={customStyles}
+                            pagination
+                            responsive
+                        />
+                    </div>
                 )}
                 <hr className='text-white'/>
                 <div className='d-flex justify-content-start'>
                     <div>
-                        <h2><span className='text-white'>Trade Wallet:</span></h2>
+                        <h2><span className='text-warning'>Trade Wallet:</span></h2>
                     </div>
                 </div>
                 {loading ? <div className='text-center'><div className='spinner-border text-warning' role='status'></div></div> : (   
-                    <DataTable
-                        columns={columns}
-                        data={tradeTokens}
-                        customStyles={customStyles}
-                        pagination
-                        responsive
-                    />
+                    <div className='text-white'>
+                        <div className='text-warning'>Total Token Price: <span className='text-white font-weight-bold'>{tradeTotalTokenPrice.toFixed(3)} $ </span></div>
+                        <DataTable
+                            columns={columns}
+                            data={tradeTokens}
+                            customStyles={customStyles}
+                            pagination
+                            responsive
+                        />
+                    </div>
                 )}
             </div>
         </div>

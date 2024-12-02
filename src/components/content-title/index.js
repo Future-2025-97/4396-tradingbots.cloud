@@ -33,7 +33,7 @@ const connection = new Connection(quickNodeUrl, 'confirmed');
 
 const ContentTitle = () => {
     const { account } = useContext(StoreContext);
-    const [trades, setTrades] = useState([]);
+    // const [trades, setTrades] = useState([]);
     const [ userBalance, setUserBalance ] = useState(0);
     const [isOpenCreateTrade, setIsOpenCreateTrade] = useState(false);
 
@@ -87,15 +87,15 @@ const ContentTitle = () => {
         fetchBots();
     }, [account])
 
-    const handleWebSocketMessage = (data) => {
-        // Process the incoming data
-        console.log('Received data:', data);
+    // const handleWebSocketMessage = (data) => {
+    //     // Process the incoming data
+    //     console.log('Received data:', data);
         
-        // Example: Update trades state based on incoming data
-        if (data.type === 'trade') {
-            setTrades((prevTrades) => [...prevTrades, data]);
-        }
-    };
+    //     // Example: Update trades state based on incoming data
+    //     if (data.type === 'trade') {
+    //         setTrades((prevTrades) => [...prevTrades, data]);
+    //     }
+    // };
 
     const handleStopLossSave = (e) => {
         if (e.key === 'Enter') {
@@ -111,7 +111,7 @@ const ContentTitle = () => {
     const generateWallet = async (e) => {
         e.preventDefault();
         const wallet = await api.generateWalletAccount();
-        console.log('wallet', wallet);
+        // console.log('wallet', wallet);
         if (Array.isArray(wallet.depositWallets) && wallet.depositWallets.length > 0) {
             const singleWalletArray = [];
             for (let i = 0; i < wallet.depositWallets.length; i++) {
@@ -174,15 +174,15 @@ const ContentTitle = () => {
     const createTradingBot = async (e) => {
         e.preventDefault();
         const createdTime = Math.floor(new Date().getTime() / 1000);
-        console.log(targetWallet);
+        // console.log(targetWallet);
         if (!tradeWallet || !targetWallet) {
             toast.error('Please fill in all fields');
             return;
         }
-        if (depositedValue == 0) {
-            toast.error('You have to deposit tokens to trading wallet');
-            return;
-        }
+        // if (depositedValue == 0) {
+        //     toast.error('You have to deposit tokens to trading wallet');
+        //     return;
+        // }
         const requestData = {
             userWallet: localStorage.getItem('wallet'),
             tradeWallet: tradeWallet,
@@ -342,14 +342,6 @@ const ContentTitle = () => {
                     {tradingBots.map((bot, index) => (
                         <Bot key={index} bot={bot} />
                     ))}
-                    <h1>Copy Trading Monitor</h1>
-                    <ul>
-                        {trades.map((trade, index) => (
-                            <li key={index}>
-                                Trade ID: {trade.id}, Price: {trade.price}, Amount: {trade.amount}
-                            </li>
-                        ))}
-                    </ul>
                 </div>
             )}
             {tradingBots.length === 0 && (
