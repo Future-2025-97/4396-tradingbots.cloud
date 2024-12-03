@@ -14,16 +14,13 @@ const {
   Market,
   SPL_MINT_LAYOUT
 } = require('@raydium-io/raydium-sdk');
-const { Wallet } = require('@coral-xyz/anchor');
-const bs58 = require('bs58');
-const { swapConfig } = require('./swapConfig');
+
 
 const connection = new Connection(process.env.QUICKNODE_RPC_URL, { commitment: 'confirmed' })
-const wallet = new Wallet(Keypair.fromSecretKey(Uint8Array.from(bs58.decode(process.env.WALLET_PRIVATE_KEY))))
+
 let allPoolKeysJson = [];
 
-const loadPoolKeys = async () => {
-    const POOL_ID = 'AQptcJhCg5k1BQpTtFDVvuZAekhm5eS49oneMfwZW9V5';
+const loadPoolKeys = async (POOL_ID) => {
   
     const account = await connection.getAccountInfo(new PublicKey(POOL_ID))
     if (account === null) throw Error(' get id info error ')
@@ -33,10 +30,8 @@ const loadPoolKeys = async () => {
     const marketAccount = await connection.getAccountInfo(marketId)
     if (marketAccount === null) throw Error(' get market info error')
     const marketInfo = MARKET_STATE_LAYOUT_V3.decode(marketAccount.data)
-    console.log('marketInfo***', marketInfo);
     const lpMint = info.lpMint
     const lpMintAccount = await connection.getAccountInfo(lpMint)
-    console.log('lpMintAccount***', lpMintAccount.data);
     if (lpMintAccount === null) throw Error(' get lp mint info error')
     const lpMintInfo = SPL_MINT_LAYOUT.decode(lpMintAccount.data)
     const poolInfo = {
@@ -76,7 +71,7 @@ const loadPoolKeys = async () => {
  * @async
  * @returns {Promise<Array>} An array of token accounts.
  */
-const getOwnerTokenAccounts = async () => {
+const getOwnerTokenAccounts = async (wallet) => {
   const walletTokenAccount = await connection.getTokenAccountsByOwner(wallet.publicKey, {
     programId: TOKEN_PROGRAM_ID,
   });
@@ -117,7 +112,8 @@ const getSwapTransaction = async (
   poolKeys,
   maxLamports,
   useVersionedTransaction,
-  fixedSide
+  fixedSide,
+  wallet
 ) => {
   console.log('++++poolKeys***', poolKeys);
   const directionIn = poolKeys.quoteMint.toString() == toToken
@@ -125,7 +121,7 @@ const getSwapTransaction = async (
   console.log({ minAmountOut, amountIn });
   console.log('amountIn', amountIn.toFixed());
   console.log('minAmountOut', minAmountOut.toFixed());
-  const userTokenAccounts = await getOwnerTokenAccounts()
+  const userTokenAccounts = await getOwnerTokenAccounts(wallet)
   const swapTransaction = await Liquidity.makeSwapInstructionSimple({
     connection,
     makeTxVersion: useVersionedTransaction ? 0 : 1,
@@ -196,7 +192,7 @@ const sendLegacyTransaction = async (tx, maxRetries) => {
  * @param {VersionedTransaction} tx - The versioned transaction to send.
  * @returns {Promise<string>} The transaction ID.
  */
-const sendVersionedTransaction = async (tx, maxRetries) => {
+const sendVersionedTransaction = async (tx, maxRetries, wallet) => {
   const txid = await connection.sendTransaction(tx, {
     skipPreflight: true,
     maxRetries: maxRetries,
@@ -211,7 +207,7 @@ const sendVersionedTransaction = async (tx, maxRetries) => {
  * @param {VersionedTransaction} tx - The versioned transaction to simulate.
  * @returns {Promise<any>} The simulation result.
  */
-const simulateLegacyTransaction = async (tx) => {
+const simulateLegacyTransaction = async (tx, wallet) => {
   const txid = await connection.simulateTransaction(tx, [wallet.payer]);
 
   return txid;

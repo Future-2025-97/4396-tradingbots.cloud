@@ -143,7 +143,11 @@ const Bot = ({bot}) => {
                 </div>
                 <div className='text-white d-flex justify-content-between'>
                     <h5><span className='text-warning'>Trade Wallet:</span> {walletAddress(tradeWallet)}</h5>
-                    <h5><span className='text-warning'>Balance:</span> {tradeBalance.toFixed(3)} $</h5>
+                    <div className='text-white d-flex flex-column align-items-end'>
+                        <h5><span className='text-white'>Current Balance:</span> {tradeBalance.toFixed(3)} $</h5>
+                        <h5><span className='text-white'>Old Balance:</span> 12 $</h5>
+                        <h5><span className='text-success'>Profit:</span> {35} $ <span className='text-yellow font-weight-bold'> (24%)</span></h5>
+                    </div>
                 </div>
                 <div className='text-white d-flex justify-content-between'>
                     <h5><span className='text-warning'>Position Value:</span> {positionValue}</h5>

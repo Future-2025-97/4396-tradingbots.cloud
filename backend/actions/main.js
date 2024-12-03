@@ -13,7 +13,7 @@ const { ShyftSdk, Network } = require('@shyft-to/js');
 const shyft = new ShyftSdk({ apiKey: process.env.SHYFT_API_KEY, network: Network.Mainnet });
 const quickNode = process.env.QUICKNODE_RPC_URL;
 const connection = new Connection(quickNode, 'confirmed');
-const raydiumSwap = require('./swapBaseIn');
+const {swapSOLToToken, swapTokenToSOL} = require('./index');
 
 const solPrice = async (amount) => {
     try {
@@ -228,6 +228,10 @@ const detectPasteTokens = async (wallet) => {
     return {isNonPasteToken, updatePasteToken, totalTradeTokenPrice, totalTradePrice, solTradeToken:{ amount: solBalance, price: sol_balance.price}};
 }
 const isSameTokenAvailable = (updateCopyToken, updatePasteToken) => {
+    if(updateCopyToken.length == 0 && updatePasteToken.length == 0) {
+        console.log('updateCopyToken.length == 0 && updatePasteToken.length == 0');
+        return true;
+    }
     const copyToken = updateCopyToken.map(token => token.address);
     const pasteToken = updatePasteToken.map(token => token.address);
     const isAvailable = copyToken.some(token => pasteToken.includes(token));
@@ -266,11 +270,11 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
     const isSameToken = isSameTokenAvailable(updateCopyToken, updatePasteToken);
     const isPosition = isPositionAvailable(updateCopyToken, updatePasteToken);
     
-    if(solTradeToken.price > process.env.SOL_MIN_PRICE_FOR_SWAP && isNonCopyToken === isNonPasteToken && updateCopyToken.length === updatePasteToken.length && isSameToken && !isPosition && updateCopyToken.length > 0) {
+    if(solTradeToken.price > process.env.SOL_MIN_PRICE_FOR_SWAP && updateCopyToken.length === updatePasteToken.length && isSameToken && !isPosition && updateCopyToken.length > 0 || isNonCopyToken === isNonPasteToken ) {
         isSafe = true;
         index = -1;
     } 
-    if (solTradeToken.price <= process.env.SOL_NORMAL_PRICE_FOR_SWAP) {
+    if (solTradeToken.price <= process.env.SOL_MIN_PRICE_FOR_SWAP) {
         msg = 'Sol balance for trader is too low for swap';
         index = 1;
         requestData.push({
@@ -278,7 +282,7 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
             index: index
         });
     }    
-    if(updateCopyToken.length == 0) {
+    if((updateCopyToken.length == 0 && updatePasteToken.length != 0) || (updateCopyToken.length != 0 && updatePasteToken.length == 0)) {
         msg = 'Copy token is empty';
         index = 2;
         requestData.push({
@@ -333,7 +337,7 @@ const detectWallet = async (tradeWallet, targetWallet, secretKey) => {
 
 // Main working function when isSafe is false.
 
-const isSolEnoughForSwapAndUpdate = async (tradeWallet, pasteDetectResult) => {
+const isSolEnoughForSwapAndUpdate = async (tradeWallet, pasteDetectResult, secretKey) => {
     const solBalance = await shyft.wallet.getBalance({ network: Network.Mainnet, wallet: tradeWallet });
     const sol_balance = await solPrice(solBalance);
     console.log('sol_balance---', sol_balance);
@@ -347,7 +351,7 @@ const isSolEnoughForSwapAndUpdate = async (tradeWallet, pasteDetectResult) => {
             const swapToken = pasteDetectResult.updatePasteToken.map(token => {
                 if(token.tokenPrice > necessarySolPricePerToken) {
                     const tokenAmount = necessarySolPricePerToken / token.tokenNativePrice;
-                    return swapTokenToSOL(token, tokenAmount, secretKey);
+                    return swapTokenToSOL(token.address, tokenAmount, secretKey);
                 }
             })
             const swapTokenPromise = await Promise.all(swapToken);
@@ -357,31 +361,124 @@ const isSolEnoughForSwapAndUpdate = async (tradeWallet, pasteDetectResult) => {
         }
     }
 }
+const getSOLTokenPrice = async () => {
+    const tokenPrice = await axios.get(`${process.env.DEXSCREENER_API_URL}${process.env.SOLTOKEN_ADDRESS}`);
+    return tokenPrice.data.pairs[0].priceUsd;
+}
+
+const checkPortfolio = (tradeWallet, tokenAddress, interval, confirm, maxAttempts) => {
+    let attempts = 0; // Counter for the number of attempts
+    const intervalId = setInterval(() => {
+        shyft.wallet.getPortfolio({ network: Network.Mainnet, wallet: tradeWallet })
+            .then(portfolio => {
+                if (portfolio.tokens.find(token => token.address === tokenAddress && Number(token.balance) > 0)) {
+                    console.log('Token found in portfolio with balance greater than 0.');
+                    clearInterval(intervalId); // Stop checking if the condition is met
+                    confirm = true; // Set confirm to true or handle as needed
+                } else {
+                    console.log('Token not found or balance is 0. Checking again...');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching portfolio:', error);
+            });
+
+        attempts++; // Increment the attempt counter
+        if (attempts >= maxAttempts) {
+            clearInterval(intervalId); // Stop checking after max attempts
+            return false;
+        }
+    }, interval); // Set the interval time in milliseconds
+    return confirm;
+};
+
+
 
 // Update bot status
-const updateBotStatus = async (copyDetectResult, pasteDetectResult, secretKey) => {
+const updateBotStatus = async (tradeWallet, copyDetectResult, pasteDetectResult, secretKey) => {
     if(pasteDetectResult.updatePasteToken.length > 0) {
         const positionValue = copyDetectResult.totalTargetTokenPrice / pasteDetectResult.totalTradeTokenPrice;
         console.log('positionValue-++--', positionValue);
     } else {
+        const intervalTime = process.env.INTERVAL_TIME_FOR_CHECK_PORTFOLIO || 5000;
+        const maxAttempts = process.env.MAX_ATTEMPTS_FOR_CHECK_PORTFOLIO || 10;
         const positionValue = copyDetectResult.totalTargetTokenPrice / (pasteDetectResult.solTradeToken.price - process.env.SOL_NORMAL_PRICE_FOR_SWAP);
+        const solTokenPrice = await getSOLTokenPrice();
+
         const swapTokens = copyDetectResult.updateCopyToken.map(async (token) => {
-            const tokenAmount = token.balance / positionValue;
+            const tokenAmount = (token.balance / positionValue) * token.tokenNativePrice / solTokenPrice;
             console.log('tokenAmount---', tokenAmount, 'tokenSymbol---', token.symbol, 'secretKey---', secretKey);
-            // return await swapSOLToToken(token.address, tokenAmount, secretKey);
+            
+            let attempt = 0; // Current attempt count
+            const maxAttempts = 3; // Maximum number of attempts for swapping
+
+            while (attempt < maxAttempts) {
+                const result = await swapSOLToToken(token.address, tokenAmount, secretKey);
+                let confirm = false;
+
+                if (checkPortfolio(tradeWallet, token.address, intervalTime, confirm, maxAttempts)) {
+                    return result; // Successful check, return result
+                } else {
+                    console.log(`Attempt ${attempt + 1} failed for token ${token.symbol}. Retrying swap...`);
+                    attempt++;
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retrying
+                }
+            }
+            return false; // Return false after max attempts
         })
+
         const swapTokenPromise = await Promise.all(swapTokens);
         console.log('swapTokenPromise---', swapTokenPromise);
+        return swapTokenPromise;
     }   
-    // const bot = await Bot.findOne({ tradeWallet: tradeWallet });
-    // bot.isWorking = true;
-    // await bot.save();
 }
 
+const sentTradePasteTokenToSOL = async (tradeWallet, pasteDetectResult, secretKey) => {
+    const swapTokens = pasteDetectResult.updatePasteToken.map(async (token) => {
+        console.log('tokenAmount---', token.balance, 'tokenSymbol---', token.symbol, 'secretKey---', secretKey);
+        
+        let attempt = 0; // Current attempt count
+        const maxAttempts = 3; // Maximum number of attempts for swapping
+        const intervalTime = process.env.INTERVAL_TIME_FOR_CHECK_PORTFOLIO || 5000;
+
+        while (attempt < maxAttempts) {
+            const result = await swapTokenToSOL(token.address, token.balance, secretKey);
+            let confirm = false;
+
+            // Check portfolio after each swap attempt
+            if (checkPortfolio(tradeWallet, token.address, intervalTime, confirm, maxAttempts)) {
+                return result; // Successful check, exit the loop and return result
+            } else {
+                console.log(`Attempt ${attempt + 1} failed for token ${token.symbol}. Retrying swap...`);
+                attempt++;
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retrying
+            }
+        }
+
+        // If max attempts reached and checkPortfolio is still false, try one last swap
+        const finalResult = await swapTokenToSOL(token.address, token.balance, secretKey);
+        return finalResult; // Return the result of the final swap attempt
+    });
+
+    const swapTokenPromise = await Promise.all(swapTokens);
+    console.log('swapTokenPromise---', swapTokenPromise);
+    return swapTokenPromise;
+}
+
+const isCopyTokenEmpty = (requestData) => {
+    const exist = requestData.some(item => item.index === process.env.INDEX_COPY_TOKEN_EMPTY || item.index === 2);
+    return exist;
+}
 const mainWorking = async (targetWallet, tradeWallet, secretKey, copyDetectResult, pasteDetectResult, safe) => {
-    const isSolEngouh = await isSolEnoughForSwapAndUpdate(tradeWallet, pasteDetectResult);
+    const isSolEngouh = await isSolEnoughForSwapAndUpdate(tradeWallet, pasteDetectResult, secretKey);
     if(isSolEngouh.status) {
-        updateBotStatus(copyDetectResult, pasteDetectResult, secretKey);
+        updateBotStatus(tradeWallet, copyDetectResult, pasteDetectResult, secretKey);
+        const isEmptyCopyToken = isCopyTokenEmpty(safe.requestData);
+        console.log('isEmptyCopyToken---', isEmptyCopyToken);
+        if(isEmptyCopyToken) {
+            sentTradePasteTokenToSOL(tradeWallet, pasteDetectResult, secretKey);
+            // return {status: false, msg: 'Copy token is empty'};
+        }
     } else {
         console.log('isSolEngouh---', isSolEngouh);
     }

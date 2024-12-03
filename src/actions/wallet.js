@@ -86,6 +86,7 @@ export const detectBalanceWallet = async (wallet) => {
         const portfolio = await shyft.wallet.getPortfolio({ network: Network.Mainnet, wallet: wallet });
         const sol_balance = portfolio.sol_balance;
         const nativeTokenPrice = await solPrice(sol_balance);
+        console.log('nativeTokenPrice---', nativeTokenPrice);
         let accountTotalPrice = nativeTokenPrice.price; // Initialize with native token price
         let tokenSymbols = [];
         
@@ -303,7 +304,7 @@ const detectCopyTokens = async (wallet) => {
             totalTargetTokenPrice = 0;
         }
         totalTargetPrice = totalTargetTokenPrice + sol_balance.price;
-        return {isNonCopyToken, updateCopyToken, totalTargetTokenPrice, totalTargetPrice, solTargetToken:{ amount: solBalance, price: sol_balance.price}};
+        return {isNonCopyToken, updateCopyToken, totalTargetTokenPrice, totalTargetPrice, solTargetToken:{ amount: solBalance, price: sol_balance.price, nativePrice: sol_balance.nativePrice}};
     } catch (error) {
         console.error('Error fetching portfolio:', error);
         return [];
@@ -388,7 +389,7 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
     console.log('isNonPasteToken---', isNonPasteToken);
     // console.log('solTargetToken---', solTargetToken);
     console.log('solTradeToken---', solTradeToken);
-    if(solTradeToken.price > process.env.REACT_APP_SOL_MIN_PRICE_FOR_SWAP && isNonCopyToken === isNonPasteToken && updateCopyToken.length === updatePasteToken.length && isSameToken && !isPosition) {
+    if(solTradeToken.price > process.env.REACT_APP_SOL_MIN_PRICE_FOR_SWAP  && updateCopyToken.length === updatePasteToken.length && isSameToken && !isPosition || isNonCopyToken === isNonPasteToken) {
         isSafe = true;
     } 
     return isSafe;

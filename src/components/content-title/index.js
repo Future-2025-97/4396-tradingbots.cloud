@@ -27,6 +27,7 @@ import { Connection,
 import * as buffer from "buffer";
 import bigInt from "big-integer";
 import Bot from '../Bot';
+import Membership from '../MemberShip';
 
 const quickNodeUrl = process.env.REACT_APP_QUICKNODE_URL;
 const connection = new Connection(quickNodeUrl, 'confirmed');
@@ -36,7 +37,7 @@ const ContentTitle = () => {
     // const [trades, setTrades] = useState([]);
     const [ userBalance, setUserBalance ] = useState(0);
     const [isOpenCreateTrade, setIsOpenCreateTrade] = useState(false);
-
+    const [isOpenMemberShip, setIsOpenMemberShip] = useState(false);
     const [tradeWallet, setTradeWallet] = useState();
     const [depositWallets, setDepositWallets] = useState([]);
     const [targetWallet, setTargetWallet] = useState();
@@ -223,6 +224,19 @@ const ContentTitle = () => {
                     <span className='mx-3 align-middle'>Create wallet, Deposit MEME coin and create copy trade</span>
                 </div>
             </div>
+            <div className='card-panel text-center' onClick={() => setIsOpenMemberShip(!isOpenMemberShip)}>
+                <div className='d-flex justify-content-center'>
+                    <img src={goldCup} alt='logo' width={30} height={30} />
+                    <span className='mx-3'>MemberShip</span>
+                </div>
+            </div>
+            {
+                isOpenMemberShip && (
+                    <div>
+                        <Membership />
+                    </div>
+                )
+            }
             <div className='card-panel text-center' onClick={() => setIsOpenCreateTrade(!isOpenCreateTrade)}>
                 <div className='d-flex justify-content-center'>
                     <img src={goldCup} alt='logo' width={30} height={30} />
@@ -336,7 +350,7 @@ const ContentTitle = () => {
             )}
             <hr className='my-3 text-white'/>
             
-            <h1 className='text-center text-white'>Trading Bots Data</h1>
+            <h1 className='text-center text-white d-flex justify-content-center'>Trading Bots Data</h1> <h4 className='text-warning mx-4 mt-3'>Free Version</h4>
             {tradingBots.length > 0 && (
                 <div>
                     {tradingBots.map((bot, index) => (

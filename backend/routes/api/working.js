@@ -7,7 +7,6 @@ const User = require('../../models/User');
 const Bot = require('../../models/Bot');
 const { createPhantomAccount } = require('../../actions/account');
 const { detectWallet } = require('../../actions/main');
-const { swapBase } = require('../../actions');
 router.get('/botWorking', async (req, res) => {
   // console.log('---------bot working-----');
   // const {tokenA, tokenB, amount} = req.body;
@@ -18,8 +17,8 @@ router.get('/botWorking', async (req, res) => {
 
   // console.log('tokenA', tokenA, 'tokenB', tokenB, 'amount', amount);
   // const response = await swapTokens(tokenA, tokenB, amount);
-  const response = await swapBase();
-  res.json({msg: response});
+  // const response = await swapBase();
+  // res.json({msg: response});
 });
   
 module.exports = router;

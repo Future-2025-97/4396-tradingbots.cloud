@@ -1,0 +1,22 @@
+.member-ship-panel {
+    background-color: #242438;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #416b41;
+}
+.text-grey {
+    color: #808080;
+}
+.member-ship-item {
+    border: 1px solid #828282;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 0 30px;
+    background-color: #373755;
+}
+.font-size-24 {
+    font-size: 24px;
+}
+.text-yellow {
+    color: #ff6600;
+}

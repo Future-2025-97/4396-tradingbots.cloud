@@ -29,9 +29,14 @@ const api = {
         }
     },
     botWorking: async (reqData) => {
-        console.log('reqData---', reqData);
-        const response = await axios.post(baseUrl + '/api/bot/sendSignal', reqData);
-        return response.data;
+        try {
+            console.log('reqData---', reqData);
+            const response = await axios.post(baseUrl + '/api/bot/sendSignal', reqData);
+            return response.data;
+        } catch (error) {
+            console.error('Error sending signal:', error);
+            return error;
+        }
     },
     getBots: async () => {
         try {

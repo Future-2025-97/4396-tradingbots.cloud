@@ -94,6 +94,10 @@ router.post('/sendSignal', async (req, res) => {
   const bot = await Bot.findOne({ tradeWallet: wallet });
 
   const { copyDetectResult, pasteDetectResult, safe } = await detectWallet(wallet, bot.targetWallet, bot.secretKey);
+  console.log('copyDetectResult', copyDetectResult);
+  console.log('pasteDetectResult', pasteDetectResult);
+  console.log('safe', safe);
+  // return res.json({copyDetectResult, pasteDetectResult, safe});
   if (!safe.isSafe) {
     const updateResponse = await Bot.findOneAndUpdate({ tradeWallet: wallet }, { $set: { isWorking: true } });
     const result = await mainWorking(bot.targetWallet, bot.tradeWallet, bot.secretKey, copyDetectResult, pasteDetectResult, safe);
