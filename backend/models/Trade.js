@@ -6,10 +6,6 @@ const TradeSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  balance: {
-    type: Number,
-    default: 0
-  },
   depositWallets: [{
     wallet: {
       type: String,
@@ -28,10 +24,6 @@ const TradeSchema = new mongoose.Schema({
       required: true
     }
   }],
-  depositAmount: {
-    type: Number,
-    default: 0
-  },
   createdAt: {
     type: Date,
     default: Date.now

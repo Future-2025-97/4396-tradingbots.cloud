@@ -71,7 +71,8 @@ const Bot = ({bot}) => {
     const [targetTotalTokenPrice, setTargetTotalTokenPrice] = useState(0);
     const [isSafe, setIsSafe] = useState(false);
 
-    const updateTradeWalletTokens = async (tradeWallet) => {
+    const updateTradeWalletTokens = async (tradeWallet, isSafe) => {
+        console.log('isSafe---', isSafe);
         if(!isSafe) {
             const reqData = {
                 wallet: tradeWallet
@@ -82,19 +83,15 @@ const Bot = ({bot}) => {
     };
 
     // Call this function after fetching the target wallet's balances
-    const getUpdatedBalances = async () => {    
-        await updateTradeWalletTokens(tradeWallet);
+    const getUpdatedBalances = async (isSafe) => {    
+        await updateTradeWalletTokens(tradeWallet, isSafe);
     };
 
     const getDetectBalance = async () => {
         const {copyDetectResult, pasteDetectResult, safe} = await detectWallet(targetWallet, tradeWallet);
         console.log('copyDetectResult---', copyDetectResult);
         console.log('pasteDetectResult---', pasteDetectResult);
-        // console.log('response---', response);
-        // const {accountTotalPrice: _target_balance, tokens: _target_tokens, solToken: _target_solToken} = await detectBalanceWallet(targetWallet);
-        // const {accountTotalPrice: _trade_balance, tokens: _trade_tokens, solToken: _trade_solToken} = await detectBalanceWallet(tradeWallet);
-        // console.log('target_tokens---', _target_balance);
-        // console.log('trade_tokens---', _trade_balance);
+        console.log('safe---', safe);
         setTargetBalance(copyDetectResult.totalTargetPrice);
         setTradeBalance(pasteDetectResult.totalTradePrice);
         setTargetSolToken(copyDetectResult.solTargetToken);
@@ -103,16 +100,14 @@ const Bot = ({bot}) => {
         setTradeTotalTokenPrice(pasteDetectResult.totalTradeTokenPrice);
         setTargetTokens(copyDetectResult.updateCopyToken);
         setTradeTokens(pasteDetectResult.updatePasteToken);
-        setIsSafe(safe);
+        setIsSafe(safe.isSafe);
         setLoading(false);
-        getUpdatedBalances();
+        getUpdatedBalances(safe.isSafe);
     }
     useEffect(() => {
-        if(tradeTokens.length === 0) {
+        // if(tradeTokens.length === 0) {
             setPositionValue((targetTotalTokenPrice / (tradeBalance - process.env.REACT_APP_SOL_NORMAL_PRICE_FOR_SWAP)).toFixed(2));
-        } else {
-            setPositionValue((targetTotalTokenPrice / tradeTotalTokenPrice).toFixed(2));
-        }
+        // } 
     }, [targetTotalTokenPrice, tradeTotalTokenPrice]);
 
     useEffect(() => {
@@ -134,14 +129,14 @@ const Bot = ({bot}) => {
             <div className='card-panel-muted text-center text-success'>
                 <div className='d-flex justify-content-between'>
                     <div className='text-white'>
-                        <h5><span className='text-warning'>User Wallet:</span> {walletAddress(userWallet)}</h5>
+                        <h5><span className='text-pink'>User Wallet:</span> {walletAddress(userWallet)}</h5>
                     </div>
                 </div>
                 <div className='text-white d-flex justify-content-between'>
                     <h5><span className='text-primary'>Target Wallet:</span> {walletAddress(targetWallet)}</h5>
                     <h5><span className='text-primary'>Balance:</span> {targetBalance.toFixed(3)} $</h5>
                 </div>
-                <div className='text-white d-flex justify-content-between'>
+                <div className='text-white d-flex justify-content-between mt-3'>
                     <h5><span className='text-warning'>Trade Wallet:</span> {walletAddress(tradeWallet)}</h5>
                     <div className='text-white d-flex flex-column align-items-end'>
                         <h5><span className='text-white'>Current Balance:</span> {tradeBalance.toFixed(3)} $</h5>
@@ -183,13 +178,13 @@ const Bot = ({bot}) => {
                             <div className='d-flex justify-content-start'>
                                 <div>
                                     <h5><span className='text-primary'>Target Wallet:</span></h5>
-                                    <h5><span className='text-white'> {loading ? <div className='spinner-border text-warning' role='status'></div> : targetSolToken.amount.toFixed(3)} SOL</span></h5>
-                                    <h5><span className='text-white'>{loading ? <div className='spinner-border text-warning' role='status'></div> : targetSolToken.price.toFixed(3)} $</span></h5>
+                                    <h5><span className='text-white'> {loading ? <div className='spinner-border text-warning' role='status'></div> : (targetSolToken.amount ? targetSolToken.amount.toFixed(3) : '0.000')} SOL</span></h5>
+                                    <h5><span className='text-white'>{loading ? <div className='spinner-border text-warning' role='status'></div> : (targetSolToken.price ? targetSolToken.price.toFixed(3) : '0.000')} $</span></h5>
                                 </div>
                                 <div className='mx-4'>
                                     <h5><span className='text-warning'>Trade Wallet:</span></h5>
-                                    <h5><span className='text-white'>{loading ? <div className='spinner-border text-warning' role='status'></div> : tradeSolToken.amount.toFixed(3)} SOL</span></h5>
-                                    <h5><span className='text-white'>{loading ? <div className='spinner-border text-warning' role='status'></div> : tradeSolToken.price.toFixed(3)} $</span></h5>
+                                    <h5><span className='text-white'>{loading ? <div className='spinner-border text-warning' role='status'></div> : (tradeSolToken.amount ? tradeSolToken.amount.toFixed(3) : '0.000')} SOL</span></h5>
+                                    <h5><span className='text-white'>{loading ? <div className='spinner-border text-warning' role='status'></div> : (tradeSolToken.price ? tradeSolToken.price.toFixed(3) : '0.000')} $</span></h5>
                                 </div>
                             </div>
                         </div>

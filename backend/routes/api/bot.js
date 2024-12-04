@@ -1,7 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
-const config = require('../../config');
 const Trade = require('../../models/Trade');
 const User = require('../../models/User');
 const Bot = require('../../models/Bot');
@@ -9,6 +7,8 @@ const { createPhantomAccount } = require('../../actions/account');
 const { detectWallet, mainWorking } = require('../../actions/main');
 const { sendToken } = require('../../actions/tokens');
 const { token } = require('@coral-xyz/anchor/dist/cjs/utils');
+const raydiumSwap = require('../../actions/swapBaseIn');
+const axios = require('axios');
 
 router.post('/createTradingBot', async (req, res) => {
   try {
@@ -27,6 +27,11 @@ router.post('/createTradingBot', async (req, res) => {
      const isExist = await User.findOne({ userWallet: userWallet });
      if (!isExist) {
       return res.status(400).json({ msg: 'User not found' });
+     }
+     const isExistBot = await Bot.findOne({ userWallet: userWallet });
+     
+     if (isExistBot) {
+      return res.status(400).json({ msg: 'Bot already exists' });
      }
 
      const trade = await Trade.findOne({ 'depositWallets.wallet': tradeWallet.value }, { depositWallets: 1 });
@@ -71,9 +76,14 @@ router.post('/getTradingBots', async (req, res) => {
   }
 });
 router.post('/sendToken', async (req, res) => {
-  const { amount, token, recipient } = req.body;
-  const response = await sendToken(amount, token, recipient);
-  res.json(response);
+  try{
+    const { amount, token, recipient } = req.body;
+    const response = await sendToken(amount, token, recipient);
+    res.json(response);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
 });
 
 router.post('/getTransactions', async (req, res) => {
@@ -90,18 +100,42 @@ router.post('/getTransactions', async (req, res) => {
 });
 
 router.post('/sendSignal', async (req, res) => {
-  const { wallet } = req.body;
-  const bot = await Bot.findOne({ tradeWallet: wallet });
+  try{
+    console.log('sendSignal');
+    const { wallet } = req.body;
+    const bot = await Bot.findOne({ tradeWallet: wallet });
+    const { copyDetectResult, pasteDetectResult, safe } = await detectWallet(wallet, bot.targetWallet, bot.secretKey);
+    // return res.json({ copyDetectResult, pasteDetectResult, safe });
+    if (!safe.isSafe) {
+      const updateResponse = await Bot.findOneAndUpdate({ tradeWallet: wallet }, { $set: { isWorking: true } });
+      const result = await mainWorking(bot.targetWallet, bot.tradeWallet, bot.secretKey, copyDetectResult, pasteDetectResult, safe);
+      res.json({result});
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
 
-  const { copyDetectResult, pasteDetectResult, safe } = await detectWallet(wallet, bot.targetWallet, bot.secretKey);
-  console.log('copyDetectResult', copyDetectResult);
-  console.log('pasteDetectResult', pasteDetectResult);
-  console.log('safe', safe);
-  // return res.json({copyDetectResult, pasteDetectResult, safe});
-  if (!safe.isSafe) {
-    const updateResponse = await Bot.findOneAndUpdate({ tradeWallet: wallet }, { $set: { isWorking: true } });
-    const result = await mainWorking(bot.targetWallet, bot.tradeWallet, bot.secretKey, copyDetectResult, pasteDetectResult, safe);
-    res.json({copyDetectResult, pasteDetectResult, safe});
+router.post('/isSwapAvailable', async (req, res) => {
+  try{
+    const { tokenAddress } = req.body;
+    if (tokenAddress != undefined) {
+      const tokenInfo = await axios.get(`${process.env.DEXSCREENER_API_URL}${tokenAddress}`);
+      for (const pair of tokenInfo.data.pairs) {
+        const response = await raydiumSwap.loadPoolKeys(pair.pairAddress);
+        if (response) {
+          res.json({ msg: true });
+          return; // End the function after sending the response
+        }
+      }
+      res.json({ msg: false });
+    } else {    
+      res.json({ msg: false });
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
   }
 });
 
@@ -139,17 +173,5 @@ router.post('/saveNewTransactions', async (req, res) => {
     res.status(500).send('Server error');
   }
 });
-// router.post('/botWorking', async (req, res) => {
-//   // console.log('---------bot working-----');
-//   const {tokenA, tokenB, amount} = req.body;
-//   const { wallet } = req.body;
-//   const {tradeWallet, targetWallet, secretKey } = await Bot.findOne({ tradeWallet: wallet });
-  
-//   await mainWorking(tradeWallet, targetWallet, secretKey);
-
-//   console.log('tokenA', tokenA, 'tokenB', tokenB, 'amount', amount);
-//   const response = await swapTokens(tokenA, tokenB, amount);
-//   res.json({working: true});
-// });
   
 module.exports = router;

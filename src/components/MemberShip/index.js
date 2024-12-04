@@ -17,7 +17,7 @@ const Membership = () => {
         return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
     };
     return (
-        <div>
+        <div className='membership-container'>
             <div className='member-ship-panel d-flex justify-content-center'>
                 <div className='text-center member-ship-item'>
                     <h4 className='text-grey font-weight-bold'>Free Version</h4>
@@ -26,7 +26,7 @@ const Membership = () => {
                         <p className='text-white'>Available token: 1</p> 
                         <p className='text-white'>Available copy trades period: 15 days</p> 
                         <div className='d-flex justify-content-center mx-3'><div className='text-warning'>From <span className='text-white'>{formatDate(today)}</span></div> <div className='text-primary mx-3'>To <span className='text-white'>{formatDate(twoWeeksLater)}</span></div></div>
-                        <div className='btn btn-success mt-3 disabled'>Buy Now</div>
+                        <div className='btn btn-primary mt-3 disabled'>Using Now</div>
                     </div>
                 </div>                
                 <div className='text-center member-ship-item'>

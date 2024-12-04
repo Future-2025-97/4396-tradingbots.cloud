@@ -21,7 +21,7 @@ const connection = new Connection(process.env.QUICKNODE_RPC_URL, { commitment: '
 let allPoolKeysJson = [];
 
 const loadPoolKeys = async (POOL_ID) => {
-  
+  try{
     const account = await connection.getAccountInfo(new PublicKey(POOL_ID))
     if (account === null) throw Error(' get id info error ')
     const info = LIQUIDITY_STATE_LAYOUT_V4.decode(account.data)
@@ -29,7 +29,13 @@ const loadPoolKeys = async (POOL_ID) => {
     const marketId = info.marketId
     const marketAccount = await connection.getAccountInfo(marketId)
     if (marketAccount === null) throw Error(' get market info error')
-    const marketInfo = MARKET_STATE_LAYOUT_V3.decode(marketAccount.data)
+    let marketInfo;
+    try{
+       marketInfo = MARKET_STATE_LAYOUT_V3.decode(marketAccount.data)
+    } catch (error) {
+      console.error('Error decoding market info:', error);
+      return null;
+    }
     const lpMint = info.lpMint
     const lpMintAccount = await connection.getAccountInfo(lpMint)
     if (lpMintAccount === null) throw Error(' get lp mint info error')
@@ -64,6 +70,10 @@ const loadPoolKeys = async (POOL_ID) => {
     }
     allPoolKeysJson.push(poolInfo);
     return allPoolKeysJson;
+  } catch (error) {
+    console.error('Error loading pool keys:', error);
+    return null;
+  }
 }
 // Example usage
 /**
@@ -72,25 +82,35 @@ const loadPoolKeys = async (POOL_ID) => {
  * @returns {Promise<Array>} An array of token accounts.
  */
 const getOwnerTokenAccounts = async (wallet) => {
-  const walletTokenAccount = await connection.getTokenAccountsByOwner(wallet.publicKey, {
-    programId: TOKEN_PROGRAM_ID,
-  });
+  try{
+    const walletTokenAccount = await connection.getTokenAccountsByOwner(wallet.publicKey, {
+      programId: TOKEN_PROGRAM_ID,
+    });
 
-  return walletTokenAccount.value.map((i) => ({
-    pubkey: i.pubkey,
-    programId: i.account.owner,
-    accountInfo: SPL_ACCOUNT_LAYOUT.decode(i.account.data),
-  }));
+    return walletTokenAccount.value.map((i) => ({
+      pubkey: i.pubkey,
+      programId: i.account.owner,
+      accountInfo: SPL_ACCOUNT_LAYOUT.decode(i.account.data),
+    }));
+  } catch (error) {
+    console.error('Error getting owner token accounts:', error);
+    return null;
+  }
 }
 
 const findPoolInfoForTokens = (mintA, mintB) => {
-  const poolData = allPoolKeysJson.find(
-    (i) => (i.baseMint === mintA && i.quoteMint === mintB) || (i.baseMint === mintB && i.quoteMint === mintA)
-  )
+  try{
+    const poolData = allPoolKeysJson.find(
+      (i) => (i.baseMint === mintA && i.quoteMint === mintB) || (i.baseMint === mintB && i.quoteMint === mintA)
+    )
 
-  if (!poolData) return null
+    if (!poolData) return null
 
-  return jsonInfo2PoolKeys(poolData)
+    return jsonInfo2PoolKeys(poolData)
+  } catch (error) {
+    console.error('Error finding pool info for tokens:', error);
+    return null;
+  }
 }
 
 
@@ -115,60 +135,64 @@ const getSwapTransaction = async (
   fixedSide,
   wallet
 ) => {
-  console.log('++++poolKeys***', poolKeys);
-  const directionIn = poolKeys.quoteMint.toString() == toToken
-  const { minAmountOut, amountIn } = await calcAmountOut(poolKeys, amount, directionIn)
-  console.log({ minAmountOut, amountIn });
-  console.log('amountIn', amountIn.toFixed());
-  console.log('minAmountOut', minAmountOut.toFixed());
-  const userTokenAccounts = await getOwnerTokenAccounts(wallet)
-  const swapTransaction = await Liquidity.makeSwapInstructionSimple({
-    connection,
-    makeTxVersion: useVersionedTransaction ? 0 : 1,
-    poolKeys: {
-      ...poolKeys,
-    },
-    userKeys: {
-      tokenAccounts: userTokenAccounts,
-      owner: wallet.publicKey,
-    },
-    amountIn: amountIn,
-    amountOut: minAmountOut,
-    fixedSide: fixedSide,
-    config: {
-      bypassAssociatedCheck: false,
-    },
-    computeBudgetConfig: {
-      microLamports: maxLamports,
-    },
-  })
+  try{
+    const directionIn = poolKeys.quoteMint.toString() == toToken
+    const { minAmountOut, amountIn } = await calcAmountOut(poolKeys, amount, directionIn)
+    console.log({ minAmountOut, amountIn });
+    console.log('amountIn', amountIn.toFixed());
+    console.log('minAmountOut', minAmountOut.toFixed());
+    const userTokenAccounts = await getOwnerTokenAccounts(wallet)
+    const swapTransaction = await Liquidity.makeSwapInstructionSimple({
+      connection,
+      makeTxVersion: useVersionedTransaction ? 0 : 1,
+      poolKeys: {
+        ...poolKeys,
+      },
+      userKeys: {
+        tokenAccounts: userTokenAccounts,
+        owner: wallet.publicKey,
+      },
+      amountIn: amountIn,
+      amountOut: minAmountOut,
+      fixedSide: fixedSide,
+      config: {
+        bypassAssociatedCheck: false,
+      },
+      computeBudgetConfig: {
+        microLamports: maxLamports,
+      },
+    })
 
-  const recentBlockhashForSwap = await connection.getLatestBlockhash()
-  const instructions = swapTransaction.innerTransactions[0].instructions.filter(Boolean)
+    const recentBlockhashForSwap = await connection.getLatestBlockhash()
+    const instructions = swapTransaction.innerTransactions[0].instructions.filter(Boolean)
 
-  if (useVersionedTransaction) {
-    const versionedTransaction = new VersionedTransaction(
-      new TransactionMessage({
-        payerKey: wallet.publicKey,
-        recentBlockhash: recentBlockhashForSwap.blockhash,
-        instructions: instructions,
-      }).compileToV0Message()
-    )
+    if (useVersionedTransaction) {
+      const versionedTransaction = new VersionedTransaction(
+        new TransactionMessage({
+          payerKey: wallet.publicKey,
+          recentBlockhash: recentBlockhashForSwap.blockhash,
+          instructions: instructions,
+        }).compileToV0Message()
+      )
 
-    versionedTransaction.sign([wallet.payer])
+      versionedTransaction.sign([wallet.payer])
 
-    return versionedTransaction
+      return versionedTransaction
+    }
+
+    const legacyTransaction = new Transaction({
+      blockhash: recentBlockhashForSwap.blockhash,
+      lastValidBlockHeight: recentBlockhashForSwap.lastValidBlockHeight,
+      feePayer: wallet.publicKey,
+    })
+
+    legacyTransaction.add(...instructions)
+
+    return legacyTransaction
+  } catch (error) {
+    console.error('Error getting swap transaction:', error);
+    return null;
   }
-
-  const legacyTransaction = new Transaction({
-    blockhash: recentBlockhashForSwap.blockhash,
-    lastValidBlockHeight: recentBlockhashForSwap.lastValidBlockHeight,
-    feePayer: wallet.publicKey,
-  })
-
-  legacyTransaction.add(...instructions)
-
-  return legacyTransaction
 }
 
 /**
@@ -178,12 +202,17 @@ const getSwapTransaction = async (
  * @returns {Promise<string>} The transaction ID.
  */
 const sendLegacyTransaction = async (tx, maxRetries) => {
-  const txid = await connection.sendTransaction(tx, [wallet.payer], {
-    skipPreflight: true,
-    maxRetries: maxRetries,
-  });
+  try{
+    const txid = await connection.sendTransaction(tx, [wallet.payer], {
+      skipPreflight: true,
+      maxRetries: maxRetries,
+    });
 
-  return txid;
+    return txid;
+  } catch (error) {
+    console.error('Error sending legacy transaction:', error);
+    return null;
+  }
 }
 
 /**
@@ -193,12 +222,17 @@ const sendLegacyTransaction = async (tx, maxRetries) => {
  * @returns {Promise<string>} The transaction ID.
  */
 const sendVersionedTransaction = async (tx, maxRetries, wallet) => {
-  const txid = await connection.sendTransaction(tx, {
-    skipPreflight: true,
-    maxRetries: maxRetries,
-  });
+  try{
+    const txid = await connection.sendTransaction(tx, {
+      skipPreflight: true,
+      maxRetries: maxRetries,
+    });
 
-  return txid;
+    return txid;
+  } catch (error) {
+    console.error('Error sending versioned transaction:', error);
+    return null;
+  }
 }
 
 /**
@@ -208,9 +242,13 @@ const sendVersionedTransaction = async (tx, maxRetries, wallet) => {
  * @returns {Promise<any>} The simulation result.
  */
 const simulateLegacyTransaction = async (tx, wallet) => {
-  const txid = await connection.simulateTransaction(tx, [wallet.payer]);
-
-  return txid;
+  try{
+    const txid = await connection.simulateTransaction(tx, [wallet.payer]);
+    return txid;
+  } catch (error) {
+    console.error('Error simulating legacy transaction:', error);
+    return null;
+  }
 }
 
 /**
@@ -220,9 +258,13 @@ const simulateLegacyTransaction = async (tx, wallet) => {
  * @returns {Promise<any>} The simulation result.
  */
 const simulateVersionedTransaction = async (tx) => {
-  const txid = await connection.simulateTransaction(tx);
-
-  return txid;
+  try{
+    const txid = await connection.simulateTransaction(tx);
+    return txid;
+  } catch (error) {
+    console.error('Error simulating versioned transaction:', error);
+    return null;
+  }
 }
 
 /**
@@ -231,14 +273,19 @@ const simulateVersionedTransaction = async (tx) => {
  * @returns {TokenAccount} The token account.
  */
 const getTokenAccountByOwnerAndMint = (mint) => {
-  return {
-    programId: TOKEN_PROGRAM_ID,
-    pubkey: PublicKey.default,
-    accountInfo: {
-      mint: mint,
-      amount: 0,
-    },
-  };
+  try{
+    return {
+      programId: TOKEN_PROGRAM_ID,
+      pubkey: PublicKey.default,
+      accountInfo: {
+        mint: mint,
+        amount: 0,
+      },
+    };
+  } catch (error) {
+    console.error('Error getting token account by owner and mint:', error);
+    return null;
+  }
 }
 
 /**
@@ -250,39 +297,44 @@ const getTokenAccountByOwnerAndMint = (mint) => {
  * @returns {Promise<Object>} The swap calculation result.
  */
 const calcAmountOut = async (poolKeys, rawAmountIn, swapInDirection) => {
-  const poolInfo =  await Liquidity.fetchInfo({ connection, poolKeys });
-  
-  let currencyInMint = poolKeys.baseMint
-  let currencyInDecimals = poolInfo.baseDecimals
-  let currencyOutMint = poolKeys.quoteMint
-  let currencyOutDecimals = poolInfo.quoteDecimals
-  if (!swapInDirection) {
-    currencyInMint = poolKeys.quoteMint
-    currencyInDecimals = poolInfo.quoteDecimals
-    currencyOutMint = poolKeys.baseMint
-    currencyOutDecimals = poolInfo.baseDecimals
-  }
-  const currencyIn = new Token(TOKEN_PROGRAM_ID, currencyInMint, currencyInDecimals)
-  const amountIn = new TokenAmount(currencyIn, rawAmountIn, false)
-  const currencyOut = new Token(TOKEN_PROGRAM_ID, currencyOutMint, currencyOutDecimals)
-  const slippage = new Percent(10, 100) // 5% slippage
-  
-  const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee } = Liquidity.computeAmountOut({
-    poolKeys,
-    poolInfo,
-    amountIn,
-    currencyOut,
-    slippage,
-  })
+  try{
+    const poolInfo =  await Liquidity.fetchInfo({ connection, poolKeys });
+    
+    let currencyInMint = poolKeys.baseMint
+    let currencyInDecimals = poolInfo.baseDecimals
+    let currencyOutMint = poolKeys.quoteMint
+    let currencyOutDecimals = poolInfo.quoteDecimals
+    if (!swapInDirection) {
+      currencyInMint = poolKeys.quoteMint
+      currencyInDecimals = poolInfo.quoteDecimals
+      currencyOutMint = poolKeys.baseMint
+      currencyOutDecimals = poolInfo.baseDecimals
+    }
+    const currencyIn = new Token(TOKEN_PROGRAM_ID, currencyInMint, currencyInDecimals)
+    const amountIn = new TokenAmount(currencyIn, rawAmountIn, false)
+    const currencyOut = new Token(TOKEN_PROGRAM_ID, currencyOutMint, currencyOutDecimals)
+    const slippage = new Percent(10, 100) // 5% slippage
+    
+    const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee } = Liquidity.computeAmountOut({
+      poolKeys,
+      poolInfo,
+      amountIn,
+      currencyOut,
+      slippage,
+    })
 
-  return {
-    amountIn,
-    amountOut,
-    minAmountOut,
-    currentPrice,
-    executionPrice,
-    priceImpact,
-    fee,
+    return {
+      amountIn,
+      amountOut,
+      minAmountOut,
+      currentPrice,
+      executionPrice,
+      priceImpact,
+      fee,
+    }
+  } catch (error) {
+    console.error('Error calculating amount out:', error);
+    return {amountIn: 0, amountOut: 0, minAmountOut: 0, currentPrice: 0, executionPrice: 0, priceImpact: 0, fee: 0};
   }
 }
 

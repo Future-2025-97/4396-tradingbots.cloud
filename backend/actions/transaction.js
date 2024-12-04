@@ -9,28 +9,44 @@ const { SolanaParser } = require('@debridge-finance/solana-transaction-parser');
  * @param {string} network - (Optional) Solana network to use (default: 'devnet')
  * @returns {Promise<boolean>} - Returns true if transaction is valid
  */
+
 async function verifyTransactionSignature(signature, network = 'mainnet') {
   try {
     // Connect to Solana network
+    console.log('verifyTransactionSignature---', signature);
     const connection = new web3.Connection(
       network === 'mainnet' 
         ? web3.clusterApiUrl('mainnet-beta')
         : web3.clusterApiUrl('devnet')
     );
 
-    // Get transaction details
-    const transaction = await connection.getTransaction(signature);
+    let transaction;
+    const maxRetries = 5;
+    const delay = 6000; // 6 seconds
+
+    // Retry logic for getting transaction details
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      transaction = await connection.getTransaction(signature, {
+        maxSupportedTransactionVersion: 0   
+      });
+      console.log(transaction);
+      console.log('transaction---', transaction);
+      if (transaction) {
+        break; // Exit loop if transaction is found
+      }
+      console.log(`Attempt ${attempt + 1} failed, retrying in 3 seconds...`);
+      await new Promise(resolve => setTimeout(resolve, delay)); // Wait for 3 seconds
+    }
 
     // Verify transaction exists and is confirmed
     if (!transaction) {
-      console.log('Transaction not found');
+      console.log('Transaction not found after multiple attempts');
       return false;
     }
 
     // You can add additional verification logic here
     // For example, verify amount, recipient address, etc.
-
-    return true;
+    return transaction;
   } catch (error) {
     console.error('Error verifying transaction:', error);
     return false;

@@ -37,7 +37,7 @@ const ContentTitle = () => {
     // const [trades, setTrades] = useState([]);
     const [ userBalance, setUserBalance ] = useState(0);
     const [isOpenCreateTrade, setIsOpenCreateTrade] = useState(false);
-    const [isOpenMemberShip, setIsOpenMemberShip] = useState(false);
+    const [isOpenMemberShip, setIsOpenMemberShip] = useState(true);
     const [tradeWallet, setTradeWallet] = useState();
     const [depositWallets, setDepositWallets] = useState([]);
     const [targetWallet, setTargetWallet] = useState();
@@ -111,17 +111,21 @@ const ContentTitle = () => {
 
     const generateWallet = async (e) => {
         e.preventDefault();
-        const wallet = await api.generateWalletAccount();
-        // console.log('wallet', wallet);
-        if (Array.isArray(wallet.depositWallets) && wallet.depositWallets.length > 0) {
+        try {
+            const wallet = await api.generateWalletAccount();
+            // console.log('wallet', wallet);
+            if (Array.isArray(wallet.depositWallets) && wallet.depositWallets.length > 0) {
             const singleWalletArray = [];
             for (let i = 0; i < wallet.depositWallets.length; i++) {
-                singleWalletArray.push(wallet.depositWallets[i].wallet);
+                    singleWalletArray.push(wallet.depositWallets[i].wallet);
+                }
+                setDepositWallets(singleWalletArray); // Return the new array containing one wallet object
+            } else {
+                toast.error('You have reached the maximum number of wallets');
+                return []; // Return an empty array if no wallets are found
             }
-            setDepositWallets(singleWalletArray); // Return the new array containing one wallet object
-        } else {
-            console.log('No wallets found in the response.');
-            return []; // Return an empty array if no wallets are found
+        } catch (error) {
+            console.log('Error generating wallet account:', error);
         }
     }
     const depositToken = async (e) => {
@@ -350,7 +354,10 @@ const ContentTitle = () => {
             )}
             <hr className='my-3 text-white'/>
             
-            <h1 className='text-center text-white d-flex justify-content-center'>Trading Bots Data</h1> <h4 className='text-warning mx-4 mt-3'>Free Version</h4>
+            <div className='d-flex justify-content-center'>
+                <h1 className='text-center text-white'>Trading Bots Data</h1> 
+                <h4 className='text-warning mx-4 mt-3'>Free Version</h4>
+            </div>
             {tradingBots.length > 0 && (
                 <div>
                     {tradingBots.map((bot, index) => (

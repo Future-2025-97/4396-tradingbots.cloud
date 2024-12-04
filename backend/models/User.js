@@ -6,33 +6,14 @@ const UserSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  balance: {
-    type: Number,
-    default: 0
+  membership: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'memberships'
   },
-  depositAmount: {
-    type: Number,
-    default: 0
+  paymentDate: {
+    type: Date,
+    default: null
   },
-  transactions: [{
-    signature: {
-      type: String,
-      required: true
-    },
-    amount: {
-      type: Number,
-      required: true
-    },
-    timestamp: {
-      type: Date,
-      default: Date.now
-    },
-    type: {
-      type: String,
-      enum: ['deposit', 'withdrawal'],
-      default: 'deposit'
-    }
-  }],
   createdAt: {
     type: Date,
     default: Date.now

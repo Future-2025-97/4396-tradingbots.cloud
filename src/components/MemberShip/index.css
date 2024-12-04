@@ -2,7 +2,7 @@
     background-color: #242438;
     padding: 20px;
     border-radius: 10px;
-    border: 1px solid #416b41;
+    border: 1px solid #877554;
 }
 .text-grey {
     color: #808080;
@@ -19,4 +19,7 @@
 }
 .text-yellow {
     color: #ff6600;
+}
+.membership-container {
+    background-color: #202f3e;
 }

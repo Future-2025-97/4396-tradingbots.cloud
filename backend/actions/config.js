@@ -15,17 +15,22 @@ const initSdk = async () => {
   if (connection.rpcEndpoint === clusterApiUrl('mainnet-beta'))
     console.warn('using free rpc node might cause unexpected error, strongly suggest uses paid rpc node')
   console.log(`connect to rpc ${connection.rpcEndpoint} in ${cluster}`)
-  raydium = await Raydium.load({
-    owner,
-    connection,
-    cluster,
-    disableFeatureCheck: true,
-    disableLoadToken: false,
-    blockhashCommitment: 'finalized',
-    urlConfigs: {
-      BASE_HOST: API_URLS.BASE_HOST, // api url configs, currently api doesn't support devnet
-    },
-  })
+  try{
+    raydium = await Raydium.load({
+        owner,
+        connection,
+        cluster,
+        disableFeatureCheck: true,
+        disableLoadToken: false,
+        blockhashCommitment: 'finalized',
+        urlConfigs: {
+          BASE_HOST: API_URLS.BASE_HOST, // api url configs, currently api doesn't support devnet
+        },
+    })
+  } catch (error) {
+    console.error('Error initializing Raydium:', error);
+    return null;
+  }
 
   /**
    * By default: sdk will automatically fetch token account data when need it or any sol balace changed.

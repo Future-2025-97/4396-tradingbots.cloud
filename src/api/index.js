@@ -16,23 +16,39 @@ const api = {
     },
 
     getDepositWallets: async () => {
-        const response = await axios.post(baseUrl + '/api/trade/getDepositWallets', { wallet: localStorage.getItem('wallet') });
-        if (Array.isArray(response.data) && response.data.length > 0) {
-            const singleWalletArray = [];
-            for (let i = 0; i < response.data.length; i++) {
-                singleWalletArray.push(response.data[i].wallet);
+        try {
+            const response = await axios.post(baseUrl + '/api/trade/getDepositWallets', { wallet: localStorage.getItem('wallet') });
+            if (Array.isArray(response.data) && response.data.length > 0) {
+                const singleWalletArray = [];
+                for (let i = 0; i < response.data.length; i++) {
+                    singleWalletArray.push(response.data[i].wallet);
+                }
+                return singleWalletArray; // Return the new array containing one wallet object
+            } else {
+                console.log('No wallets found in the response.');
+                return []; // Return an empty array if no wallets are found
             }
-            return singleWalletArray; // Return the new array containing one wallet object
-        } else {
-            console.log('No wallets found in the response.');
-            return []; // Return an empty array if no wallets are found
+        } catch (error) {
+            console.error('Error fetching deposit wallets:', error);
+            return [];
+        }
+    },
+    isSwapAvailable: async (tokenAddress) => {
+        try {
+            const response = await axios.post(baseUrl + '/api/bot/isSwapAvailable', { tokenAddress });
+            console.log('/////response---', response.data);
+            return response;
+        } catch (error) {
+            console.error('Error checking swap availability:', error);
+            return error;
         }
     },
     botWorking: async (reqData) => {
         try {
             console.log('reqData---', reqData);
-            const response = await axios.post(baseUrl + '/api/bot/sendSignal', reqData);
-            return response.data;
+            // const response = await axios.post(baseUrl + '/api/bot/sendSignal', reqData);
+            // console.log('response---', response.data);
+            // return response.data;
         } catch (error) {
             console.error('Error sending signal:', error);
             return error;
@@ -59,25 +75,36 @@ const api = {
     },
 
     signUp: async (userWallet) => {
-        const response = await axios.post(baseUrl + '/api/users/connectWallet', { userWallet });
-        return response.data;
+        try {
+            const response = await axios.post(baseUrl + '/api/users/connectWallet', { userWallet });
+            return response.data;
+        } catch (error) {
+            console.error('Error signing up:', error);
+            return error;
+        }
     },
 
     generateWalletAccount: async () => {
-        // console.log('**** generateWalletAccount ****');
-        const response = await axios.post(baseUrl + '/api/trade/newCreateWallet', { wallet: localStorage.getItem('wallet') });
-        const depositWallet = response.data.depositWallets;
-        const lastIndex = depositWallet.length - 1;
+        try {
+            // console.log('**** generateWalletAccount ****');
+            const response = await axios.post(baseUrl + '/api/trade/newCreateWallet', { wallet: localStorage.getItem('wallet') });
+            if(response.data.status !== false){
+                const depositWallet = response.data.depositWallets;
+                const lastIndex = depositWallet.length - 1;
 
-        // Check if the array is not empty before accessing the last element
-        if (lastIndex >= 0) {
-            const lastWallet = depositWallet[lastIndex];
-            toast.success(api.customToast(`${lastWallet.wallet}`));
-        } else {
-            console.log('The depositWallet array is empty.');
+                // Check if the array is not empty before accessing the last element
+                if (lastIndex >= 0) {
+                    const lastWallet = depositWallet[lastIndex];
+                    toast.success(api.customToast(`${lastWallet.wallet}`));
+                } else {
+                    console.log('The depositWallet array is empty.');
+                }
+            }
+            return response.data;
+        } catch (error) {
+            console.error('Error generating wallet account:', error);
+            return error;
         }
-
-        return response.data;
     },
 
     saveNewTransactions: async (botId, transactions) => {
@@ -91,8 +118,13 @@ const api = {
     },
 
     getTransactions: async (botId) => {
-        const response = await axios.post(baseUrl + '/api/bot/getTransactions', { botId });
-        return response.data;
+        try {
+            const response = await axios.post(baseUrl + '/api/bot/getTransactions', { botId });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching transactions:', error);
+            return error;
+        }
     }
 }
 
