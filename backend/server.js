@@ -8,6 +8,8 @@ require('dotenv').config();
 const cors = require('cors');
 const mongoURI = process.env.MONGO_URI;
 const portNumber = process.env.PORT_NUMBER || 5000;
+const cron = require('node-cron'); 
+const { checkAllBots } = require('./actions/engine');
 
 app.use(cors({
     origin: '*'
@@ -15,6 +17,11 @@ app.use(cors({
 
 // Connect Database
 connectDB(mongoURI);
+
+cron.schedule('*/2 * * * *', async () => {
+  console.log('checkAllBots');
+  await checkAllBots();
+});
 
 // Init Middleware
 app.use(express.json());
