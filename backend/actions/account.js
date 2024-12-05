@@ -10,11 +10,11 @@ async function createPhantomAccount() {
 
 
     // Connect to the Solana Mainnet
-    const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
+    // const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
 
     // Check the balance of the new wallet
-    const balance = await connection.getBalance(newKeypair.publicKey);
-
+    // const balance = await connection.getBalance(newKeypair.publicKey);
+    
     return { publicKey, secretKey };
   } catch (error) {
     console.error('Error creating phantom account:', error);

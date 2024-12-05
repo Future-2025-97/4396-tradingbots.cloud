@@ -10,6 +10,10 @@ const UserSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'memberships'
   },
+  registeredUserDate: {
+    type: Date,
+    default: null
+  },
   paymentDate: {
     type: Date,
     default: null
@@ -17,7 +21,11 @@ const UserSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
-  }
+  },  
+  ipAddress: {
+    type: String,
+    required: true
+  },
 });
 
 module.exports = mongoose.model('users', UserSchema);

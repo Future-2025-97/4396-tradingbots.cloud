@@ -219,7 +219,7 @@ const filterPasteTokens = async (tokens) => {
     }
 }
 
-const detectCopyTokens = async (wallet) => {
+const detectCopyTokens = async (wallet, userInfo) => {
     try {
         const maxRetries = 3; // Maximum number of retries
         let attempt = 0; // Current attempt count
@@ -245,6 +245,11 @@ const detectCopyTokens = async (wallet) => {
         const sol_balance = await solPrice(solBalance);
         const filterTokens = portfolio.tokens.filter(token => token.balance > process.env.BALANCE_MIN_LIMIT);
         const {isNonCopyToken, updateCopyToken} = await filterCopyTokens(filterTokens);
+        let sortedUpdateCopyToken = sortTokenByPrice(updateCopyToken);
+        const limitTokenCount = userInfo.membership.maxCopyTokens;
+        if(sortedUpdateCopyToken.length > limitTokenCount) {
+            sortedUpdateCopyToken = sortedUpdateCopyToken.slice(0, limitTokenCount);
+        }
         let totalTargetTokenPrice = 0;
         let totalTargetPrice = 0;
         if(!isNonCopyToken){
@@ -254,7 +259,7 @@ const detectCopyTokens = async (wallet) => {
         }
         totalTargetPrice = totalTargetTokenPrice + sol_balance.price;
         console.log('totalTargetPrice', totalTargetPrice);
-        return {isNonCopyToken, updateCopyToken, totalTargetTokenPrice, totalTargetPrice, solTargetToken:{ amount: solBalance, price: sol_balance.price, nativePrice: sol_balance.nativePrice}};
+        return {isNonCopyToken, updateCopyToken: sortedUpdateCopyToken, totalTargetTokenPrice, totalTargetPrice, solTargetToken:{ amount: solBalance, price: sol_balance.price, nativePrice: sol_balance.nativePrice}};
     } catch (error) {
         console.error('Error fetching portfolio:', error);
         return [];
@@ -452,9 +457,9 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
     }
 }
 
-const detectWallet = async (tradeWallet, targetWallet, secretKey) => {
+const detectWallet = async (tradeWallet, targetWallet, secretKey, userInfo) => {
     try {
-        const copyDetectResult = await detectCopyTokens(targetWallet);
+        const copyDetectResult = await detectCopyTokens(targetWallet, userInfo);
         console.log('copyDetectResult---', copyDetectResult);
         const pasteDetectResult = await detectPasteTokens(tradeWallet);    
         console.log('pasteDetectResult---', pasteDetectResult);
@@ -651,5 +656,6 @@ const mainWorking = async (targetWallet, tradeWallet, secretKey, copyDetectResul
 
 module.exports = {
   detectWallet,
-  mainWorking
+  mainWorking,
+  solPrice
 }

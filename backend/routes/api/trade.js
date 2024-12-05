@@ -33,6 +33,7 @@ router.post('/getDepositWallets', async (req, res) => {
 router.post('/newCreateWallet', async (req, res) => {
   try {
     const { wallet } = req.body;
+    console.log('wallet---', wallet);
     const newWallet = await createPhantomAccount();
     const isExist = await Trade.findOne({ userWallet: wallet });
     if (isExist) {

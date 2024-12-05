@@ -14,11 +14,7 @@ async function verifyTransactionSignature(signature, network = 'mainnet') {
   try {
     // Connect to Solana network
     console.log('verifyTransactionSignature---', signature);
-    const connection = new web3.Connection(
-      network === 'mainnet' 
-        ? web3.clusterApiUrl('mainnet-beta')
-        : web3.clusterApiUrl('devnet')
-    );
+    const connection = new Connection(process.env.QUICKNODE_RPC_URL, 'confirmed');
 
     let transaction;
     const maxRetries = 5;

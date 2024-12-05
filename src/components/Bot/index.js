@@ -1,50 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { walletAddress, detectBalanceWallet, detectWallet, formatUnixTime } from '../../actions/wallet';
+import { walletAddress, detectWallet, formatUnixTime } from '../../actions/wallet';
 import api from '../../api';
 import './index.css';
 import DataTable from 'react-data-table-component';
 import { FaCheckCircle } from 'react-icons/fa';
 import customStyles from './CustomStyle';
-// import {
-//     TokenAccount,
-//     // SPL_ACCOUNT_LAYOUT,
-//     // LIQUIDITY_STATE_LAYOUT_V4,
-//   } from "@raydium-io/raydium-sdk";
-const API_KEY = "wI0PAkt71h_QUlWQ";
-const network = 'mainnet-beta';
+import Modal from 'react-bootstrap/Modal';
+import Button from 'react-bootstrap/Button';
+import { columns } from './column';
+import { toast } from 'react-toastify';
 
-const tx_num = 10;
-const isEnabled = true;
-
-const columns = [
-	{
-		name: 'Token Address',
-		selector: row => walletAddress(row.address),
-        // width: '150px'
-	},    
-    {
-        name: 'Token Amount',
-        selector: row => row.balance,
-        // width: '150px'
-    },
-    {
-        name: 'Token Symbol',
-        selector: row => row.symbol,
-        // width: '150px'
-    },
-    {
-        name: 'Token Price',
-        selector: row => <div>$ {row.tokenNativePrice}</div>,
-        // width: '150px'
-    },
-    {
-        name: 'Balance',
-        selector: row => <div>$ {row.tokenPrice}</div>,
-        // width: '150px'
-    }
-];
-
-const Bot = ({bot}) => {
+const Bot = ({bot, setTradingBots, userInfo}) => {
     const { 
         userWallet, 
         tradeWallet,
@@ -55,8 +21,8 @@ const Bot = ({bot}) => {
         isTakeProfit,
         isStopLoss,
         targetWallet,
-        isWorking,
-        secretKey
+        isFinished,
+        depositPrice
     } = bot;
 
     const [loading, setLoading] = useState(true);
@@ -70,9 +36,16 @@ const Bot = ({bot}) => {
     const [tradeTotalTokenPrice, setTradeTotalTokenPrice] = useState(0);
     const [targetTotalTokenPrice, setTargetTotalTokenPrice] = useState(0);
     const [isSafe, setIsSafe] = useState(false);
+    const [isClosed, setIsClosed] = useState(false);
+    const [isWithdraw, setIsWithdraw] = useState(false);
+    const [closeModal, setCloseModal] = useState(false);
+    const [withdrawModal, setWithdrawModal] = useState(false);
+    const [withdrawAddress, setWithdrawAddress] = useState('');
+    const [profit, setProfit] = useState(0);
+    const [profitPercentage, setProfitPercentage] = useState(0);
 
     const updateTradeWalletTokens = async (tradeWallet, isSafe) => {
-        console.log('isSafe---', isSafe);
+        console.log('userInfo---', userInfo);
         if(!isSafe) {
             const reqData = {
                 wallet: tradeWallet
@@ -86,9 +59,16 @@ const Bot = ({bot}) => {
     const getUpdatedBalances = async (isSafe) => {    
         await updateTradeWalletTokens(tradeWallet, isSafe);
     };
-
+    const closeBot = async (botId) => {
+        console.log('botId---', botId);
+        const res = await api.closeBot(botId);
+        setCloseModal(false);      
+        setIsClosed(true);
+        setIsWithdraw(true);
+        toast.success(`${res.msg}`);
+    }
     const getDetectBalance = async () => {
-        const {copyDetectResult, pasteDetectResult, safe} = await detectWallet(targetWallet, tradeWallet);
+        const {copyDetectResult, pasteDetectResult, safe} = await detectWallet(targetWallet, tradeWallet, userInfo);
         console.log('copyDetectResult---', copyDetectResult);
         console.log('pasteDetectResult---', pasteDetectResult);
         console.log('safe---', safe);
@@ -103,27 +83,44 @@ const Bot = ({bot}) => {
         setIsSafe(safe.isSafe);
         setLoading(false);
         getUpdatedBalances(safe.isSafe);
+        const profitValue = pasteDetectResult.totalTradePrice - depositPrice;
+        const profitPercentageValue = (profitValue / depositPrice * 100).toFixed(4);
+        setProfit(profitValue);
+        setProfitPercentage(profitPercentageValue);
     }
     useEffect(() => {
-        // if(tradeTokens.length === 0) {
-            setPositionValue((targetTotalTokenPrice / (tradeBalance - process.env.REACT_APP_SOL_NORMAL_PRICE_FOR_SWAP)).toFixed(2));
-        // } 
+        console.log('isFinished---', isFinished);
+        setIsClosed(isFinished);
+        setIsWithdraw(isFinished);
+        const positionAmount = (targetTotalTokenPrice / (tradeBalance - process.env.REACT_APP_SOL_NORMAL_PRICE_FOR_SWAP)).toFixed(2);
+        if(positionAmount > 0) {
+            setPositionValue(positionAmount);
+        }
     }, [targetTotalTokenPrice, tradeTotalTokenPrice]);
 
     useEffect(() => {
         getDetectBalance();
-        const interval = setInterval(() => getDetectBalance(), 60000); // Poll every 2mins
-        // console.log('isWorking---', isWorking);
-        return () => clearInterval(interval); // Cleanup on unmount
-    }, [targetWallet]);
+        // if(userInfo !== null) {
+            const interval = setInterval(() => getDetectBalance(), 60000); // Poll every 2mins
+            // console.log('isWorking---', isWorking);
+            return () => clearInterval(interval); // Cleanup on unmount
+        // } else {
+        //     const interval = setInterval(() => getDetectBalance(), 1000); // Poll every 2mins
+        //     // console.log('isWorking---', isWorking);
+        //     return () => clearInterval(interval); 
+        // }
+    }, [targetWallet, userInfo]);
 
-    // useEffect(() => {
-    //     const fetchData = async () => {
-    //         const transactions_tx = await api.getTransactions(bot._id);
-    //         setTransactions(transactions_tx);
-    //     }
-    //     fetchData();
-    // }, [showTransactions]);
+    const withdrawBot = async (botId, withdrawAddress) => {
+        console.log('botId---', botId);
+        console.log('withdrawAddress---', withdrawAddress);
+        const res = await api.withdrawBot(botId, withdrawAddress);
+        console.log('res---', res);
+        setWithdrawModal(false);
+        setIsWithdraw(false);
+        toast.success(api.customToastWithSignature(`${res.msg}`));
+        setTradingBots([]);
+    }
     return (
         <div>
             <div className='card-panel-muted text-center text-success'>
@@ -140,8 +137,8 @@ const Bot = ({bot}) => {
                     <h5><span className='text-warning'>Trade Wallet:</span> {walletAddress(tradeWallet)}</h5>
                     <div className='text-white d-flex flex-column align-items-end'>
                         <h5><span className='text-white'>Current Balance:</span> {tradeBalance.toFixed(3)} $</h5>
-                        <h5><span className='text-white'>Old Balance:</span> 12 $</h5>
-                        <h5><span className='text-success'>Profit:</span> {35} $ <span className='text-yellow font-weight-bold'> (24%)</span></h5>
+                        <h5><span className='text-white'>Old Balance:</span> {depositPrice} $</h5>
+                        <h5><span className='text-success'>Profit:</span> {profit.toFixed(3)} $ <span className='text-yellow font-weight-bold'> ({profitPercentage}%)</span></h5>
                     </div>
                 </div>
                 <div className='text-white d-flex justify-content-between'>
@@ -163,13 +160,16 @@ const Bot = ({bot}) => {
                 </div>     
                 <div className='d-flex justify-content-start'>
                     <div className='text-white'>
-                        <h5><span className='text-warning'>Original Price:</span> {depositValue}$</h5>
+                        <h5><span className='text-warning'>Original Price:</span> {depositValue} SOL</h5>
                     </div> 
                 </div>
                 <div className='d-flex justify-content-start my-3'>
-                    <div className='btn btn-danger'>
+                    <div className={`btn btn-danger ${isClosed ? 'disabled' : ''}`} onClick={() => setCloseModal(true)}>
                         Close
                     </div>
+                    {isWithdraw && (
+                        <div className='btn btn-success mx-4' onClick={() => setWithdrawModal(true)}>Withdraw</div>
+                    )}
                 </div>  
                 {tradeSolToken && targetSolToken && (
                     <div className='d-flex justify-content-between'>
@@ -188,9 +188,11 @@ const Bot = ({bot}) => {
                                 </div>
                             </div>
                         </div>
-                        <div className='d-flex justify-content-center'>
-                            <div className='text-warning mx-2 mt-1'>Bot Status:</div> {isSafe == false ? <div className='spinner-border text-warning' role='status'></div> : <div className='text-success align-items-center'><FaCheckCircle size={40} /></div>}
-                        </div>
+                        {!isFinished && (
+                            <div className='d-flex justify-content-center'>
+                                <div className='text-warning mx-2 mt-1'>Bot Status:</div> {isSafe == false ? <div className='spinner-border text-warning' role='status'></div> : <div className='text-success align-items-center'><FaCheckCircle size={40} /></div>}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -203,13 +205,15 @@ const Bot = ({bot}) => {
                 {loading ? <div className='text-center'><div className='spinner-border text-warning' role='status'></div></div> : (
                     <div className='text-white'>
                         <div className='text-primary'>Total Token Price: <span className='text-white font-weight-bold'>{targetTotalTokenPrice.toFixed(3)} $ </span></div>
-                        <DataTable
-                            columns={columns}
+                        {userInfo && (
+                            <DataTable
+                                columns={columns}
                             data={targetTokens}
                             customStyles={customStyles}
                             pagination
-                            responsive
-                        />
+                                responsive
+                            />
+                        )}
                     </div>
                 )}
                 <hr className='text-white'/>
@@ -231,6 +235,31 @@ const Bot = ({bot}) => {
                     </div>
                 )}
             </div>
+            <Modal show={closeModal} centered onHide={() => setCloseModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Close Bot</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <div>Are you sure you want to close this bot?</div>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setCloseModal(false)}>Cancel</Button>
+                    <Button variant="danger" onClick={() => closeBot(bot._id)}>Confirm</Button>
+                </Modal.Footer>
+            </Modal>
+            <Modal show={withdrawModal} centered onHide={() => setWithdrawModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title className='text-warning font-weight-bold'>Withdraw</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <input type='text' className='form-control' placeholder='Enter your withdraw address' value={withdrawAddress} onChange={(e) => setWithdrawAddress(e.target.value)} />
+                    <h5 className='text-center pt-4 font-weight-bold'>Are you sure you want to withdraw to this address?</h5>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setWithdrawModal(false)}>Cancel</Button>
+                    <Button variant="danger" onClick={() => withdrawBot(bot._id, withdrawAddress)}>Confirm</Button>
+                </Modal.Footer>
+            </Modal>
         </div>
     )
 }

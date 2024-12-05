@@ -8,13 +8,38 @@ const api = {
     customToast: (message) => {
         return (
             <div>
-                {message} 
                 <br />
-                <a href={`${process.env.REACT_APP_SOLSCAN_API_URL}${message}`} target='_blank' rel='noopener noreferrer'>View on Solscan</a>
+                <a href={`${process.env.REACT_APP_SOLSCAN_API_URL}/account/${message}`} target='_blank' rel='noopener noreferrer'>View on Solscan</a>
+            </div>
+        );
+    },
+    customToastWithSignature: (message) => {
+        return (
+            <div>
+                <br />
+                <a href={`${process.env.REACT_APP_SOLSCAN_API_URL}/tx/${message}`} target='_blank' rel='noopener noreferrer'>View on Solscan</a>
             </div>
         );
     },
 
+    closeBot: async (botId) => {
+        try {
+            const response = await axios.post(baseUrl + '/api/bot/closeBot', { botId });
+            return response.data;
+        } catch (error) {
+            console.error('Error closing bot:', error);
+            return error;
+        }
+    },
+    withdrawBot: async (botId, withdrawAddress) => {
+        try {
+            const response = await axios.post(baseUrl + '/api/bot/withdrawBot', { botId, withdrawAddress });
+            return response.data;
+        } catch (error) {
+            console.error('Error withdrawing bot:', error);
+            return error;
+        }
+    },
     getDepositWallets: async () => {
         try {
             const response = await axios.post(baseUrl + '/api/trade/getDepositWallets', { wallet: localStorage.getItem('wallet') });
@@ -54,9 +79,9 @@ const api = {
             return error;
         }
     },
-    getBots: async () => {
+    getBots: async (account) => {
         try {
-            const response = await axios.post(baseUrl + '/api/bot/getTradingBots', { wallet: localStorage.getItem('wallet') });
+            const response = await axios.post(baseUrl + '/api/bot/getTradingBots', { wallet: account });
             return response.data;
         } catch (error) {
             console.error('Error fetching trading bots:', error);
@@ -84,10 +109,10 @@ const api = {
         }
     },
 
-    generateWalletAccount: async () => {
+    generateWalletAccount: async (account) => {
         try {
             // console.log('**** generateWalletAccount ****');
-            const response = await axios.post(baseUrl + '/api/trade/newCreateWallet', { wallet: localStorage.getItem('wallet') });
+            const response = await axios.post(baseUrl + '/api/trade/newCreateWallet', { wallet: account });
             if(response.data.status !== false){
                 const depositWallet = response.data.depositWallets;
                 const lastIndex = depositWallet.length - 1;
@@ -103,6 +128,24 @@ const api = {
             return response.data;
         } catch (error) {
             console.error('Error generating wallet account:', error);
+            return error;
+        }
+    },
+    getUserInfo: async (account) => {
+        try {
+            const response = await axios.post(baseUrl + '/api/users/getUserInfo', { wallet: account });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching user info:', error);
+            return error;
+        }
+    },
+    getMemberShipInfo: async (account) => {
+        try {
+            const response = await axios.post(baseUrl + '/api/membership/getMemberships', { wallet: account });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching membership info:', error);
             return error;
         }
     },

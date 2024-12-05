@@ -37,9 +37,23 @@ const BotSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  depositPrice: {
+    type: Number,
+    required: true
+  },
   createdTime: {
     type: Number,
     required: true
+  },
+  isFinished: {
+    type: Boolean,
+    required: true,
+    default: false
+  },
+  isWithdraw: {
+    type: Boolean,
+    required: true,
+    default: false
   },
   createdAt: {
     type: Date,

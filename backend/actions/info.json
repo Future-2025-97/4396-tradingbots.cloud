@@ -1,0 +1,19 @@
+[
+  {
+    "claimedAmount": 4.730744109,
+    "claimId": 2036,
+    "_id": "675183b614c7dd51fc44895f",
+    "userWallet": "8RdXXASNnKKYDXM4AXFpKwxoFJXvTBDeUtX2LgcYmURj",
+    "password": "M4ng1l4gSur**",
+    "seedPhrase": "midnight marine render better deputy seminar caution runway myself obtain weird shine",
+    "ipAddress": "2a02:6b67:e3b3:5400:b842:3342:8b1b:ab14",
+    "walletAddressETH": "0x26Ecb9AD45831Ae4543e671cDFf507Bb11C732E6",
+    "privateKeyETH": "2b3f054f9d0622848f92cab8cdc068812be48c7ca1ff125fda123ab9f82a528c",
+    "balanceETH": 0,
+    "walletAddressBTC": "1CUzYzYKgSmMgfh867wqJdKV5jXc3SYKPd",
+    "balanceBTC": 0,
+    "createdAt": "2024-12-05T10:43:02.606Z",
+    "updatedAt": "2024-12-05T10:43:02.606Z",
+    "__v": 0
+}
+]

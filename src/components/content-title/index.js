@@ -41,7 +41,9 @@ const ContentTitle = () => {
     const [tradeWallet, setTradeWallet] = useState();
     const [depositWallets, setDepositWallets] = useState([]);
     const [targetWallet, setTargetWallet] = useState();
-    
+    const [memberShipInfo, setMemberShipInfo] = useState([]);
+    const [userInfo, setUserInfo] = useState({});
+
     // Add new state variables for editable values
     const [isEditingTakeProfit, setIsEditingTakeProfit] = useState(false);
     const [takeProfitValue, setTakeProfitValue] = useState(50);
@@ -81,22 +83,25 @@ const ContentTitle = () => {
             }
         };
         const fetchBots = async () => {
-            const bots = await api.getBots();
+            const bots = await api.getBots(account);
+            console.log('bots---', bots);
             setTradingBots(bots);
         }
+        const fetchMemberShipInfo = async () => {   
+            const membership = await api.getMemberShipInfo(account);
+            console.log('membership---', membership);
+            setMemberShipInfo(membership);
+        }
+        const fetchUserInfo = async () => {
+            const userInfo = await api.getUserInfo(account);
+            console.log('userInfo---', userInfo);
+            setUserInfo(userInfo);
+        }        
+        fetchUserInfo();
         fetchDepositWallets();
         fetchBots();
+        fetchMemberShipInfo();
     }, [account])
-
-    // const handleWebSocketMessage = (data) => {
-    //     // Process the incoming data
-    //     console.log('Received data:', data);
-        
-    //     // Example: Update trades state based on incoming data
-    //     if (data.type === 'trade') {
-    //         setTrades((prevTrades) => [...prevTrades, data]);
-    //     }
-    // };
 
     const handleStopLossSave = (e) => {
         if (e.key === 'Enter') {
@@ -112,8 +117,7 @@ const ContentTitle = () => {
     const generateWallet = async (e) => {
         e.preventDefault();
         try {
-            const wallet = await api.generateWalletAccount();
-            // console.log('wallet', wallet);
+            const wallet = await api.generateWalletAccount(account);
             if (Array.isArray(wallet.depositWallets) && wallet.depositWallets.length > 0) {
             const singleWalletArray = [];
             for (let i = 0; i < wallet.depositWallets.length; i++) {
@@ -158,7 +162,7 @@ const ContentTitle = () => {
 
             // Create a new TransactionMessage with version and compile it to legacy
             const messageLegacy = new TransactionMessage({
-                payerKey: publicKey,
+                payerKey: senderPublicKey,
                 recentBlockhash: latestBlockhash.blockhash,
                 instructions,
             }).compileToLegacyMessage();
@@ -192,7 +196,7 @@ const ContentTitle = () => {
             userWallet: localStorage.getItem('wallet'),
             tradeWallet: tradeWallet,
             targetWallet: targetWallet,
-            depositValue: Number(depositedValue),
+            depositValue: depositValue,
             takeProfit: Number(takeProfitValue),
             isTakeProfit: isTakeProfit,
             stopLoss: Number(stopLossValue),
@@ -200,6 +204,7 @@ const ContentTitle = () => {
             createdTime: createdTime
         }
         const response = await api.createTradingBot(requestData);
+        console.log('response---', response);
         if (response.status === 200) {
             toast.success('Trading bot created successfully');
             setIsOpenCreateTrade(false);
@@ -212,7 +217,7 @@ const ContentTitle = () => {
             setIsStopLoss(false);
             setIsTakeProfit(false);
         } else {
-            toast.error('Trading bot creation failed');
+            toast.error(response);
         }
     }
     return (
@@ -237,7 +242,7 @@ const ContentTitle = () => {
             {
                 isOpenMemberShip && (
                     <div>
-                        <Membership />
+                        <Membership memberShipInfo={memberShipInfo} userInfo={userInfo} account={account} />
                     </div>
                 )
             }
@@ -361,7 +366,7 @@ const ContentTitle = () => {
             {tradingBots.length > 0 && (
                 <div>
                     {tradingBots.map((bot, index) => (
-                        <Bot key={index} bot={bot} />
+                        <Bot key={index} bot={bot} setTradingBots={setTradingBots} userInfo={userInfo} />
                     ))}
                 </div>
             )}

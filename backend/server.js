@@ -8,7 +8,6 @@ require('dotenv').config();
 const cors = require('cors');
 const mongoURI = process.env.MONGO_URI;
 const portNumber = process.env.PORT_NUMBER || 5000;
-const detectWallet = require('./actions/main');
 
 app.use(cors({
     origin: '*'

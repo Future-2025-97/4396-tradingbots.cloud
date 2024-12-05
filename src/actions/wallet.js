@@ -9,6 +9,7 @@ import * as buffer from "buffer";
 import axios from 'axios';
 import api from '../api';
 import { getTokenInfo } from './token';
+import bigInt from "big-integer";
 
 const quickNodeUrl = process.env.REACT_APP_QUICKNODE_URL;
 const connection = new Connection(quickNodeUrl, 'confirmed');
@@ -41,6 +42,9 @@ export const getUserBalance = async (accountAddress) => {
 };  
 
 export const depositSOLToken = async (sender, recipient, _amount) => {
+    console.log('sender---', sender);
+    console.log('recipient---', recipient);
+    console.log('_amount---', _amount);
     window.Buffer = buffer.Buffer;
     const amount = Number(_amount);
     if (!sender || !recipient || !amount) {
@@ -59,7 +63,7 @@ export const depositSOLToken = async (sender, recipient, _amount) => {
         SystemProgram.transfer({
             fromPubkey: senderPublicKey,
             toPubkey: recipientPublicKey,
-            lamports: amount * LAMPORTS_PER_SOL,
+            lamports: bigInt(amount * LAMPORTS_PER_SOL),
         })
     );    
 
@@ -140,7 +144,7 @@ const getTotalTokenPriceAndUpdateTokens = async (tokens) => {
         const tokenPriceResponse = await axios.get(`https://api.dexscreener.com/latest/dex/tokens/${token.address}`);
             // console.log('tokenPriceResponse---', tokenPriceResponse);
             let findTokenInfo = false;
-        
+            console.log('tokenPriceResponse---', tokenPriceResponse);
             if (tokenPriceResponse.data.pairs != null) {
                 for (const pair of tokenPriceResponse.data.pairs) { // Changed to for...of loop
                     if (findTokenInfo) {
@@ -276,7 +280,7 @@ const filterAvailableSwapTokens = async (tokens) => {
         return [];
     }
 }
-const isNonCopyToken = async (tokens) => {
+const isNonCopyToken = async (tokens, userInfo) => {
     const {totalTokenPrice, updateTokens} = await getTotalTokenPriceAndUpdateTokens(tokens);
     const availableSwapTokens = await filterAvailableSwapTokens(updateTokens);
     const response = await isNonCopyTokenChecking(totalTokenPrice, availableSwapTokens);
@@ -289,8 +293,8 @@ const isNonPasteToken = async (tokens) => {
     return response;
 }
 
-const filterCopyTokens = async (tokens) => {
-    const response = await isNonCopyToken(tokens);
+const filterCopyTokens = async (tokens, userInfo) => {
+    const response = await isNonCopyToken(tokens, userInfo);
     return response;
 }
 
@@ -299,7 +303,7 @@ const filterPasteTokens = async (tokens) => {
     return response;
 }
 
-const detectCopyTokens = async (wallet) => {
+const detectCopyTokens = async (wallet, userInfo) => {
     try {
         const maxRetries = 3; // Maximum number of retries
         let attempt = 0; // Current attempt count
@@ -325,18 +329,25 @@ const detectCopyTokens = async (wallet) => {
         const sol_balance = await solPrice(solBalance);
         const filterTokens = portfolio.tokens.filter(token => token.balance > process.env.REACT_APP_BALANCE_MIN_LIMIT);
         console.log('filterTokens---', filterTokens);
-        const {isNonCopyToken, updateCopyToken} = await filterCopyTokens(filterTokens);
-        console.log('updateCopyToken-+++-', updateCopyToken);
-        const sortedUpdateCopyToken = sortTokenByPrice(updateCopyToken);
+        const {isNonCopyToken, updateCopyToken} = await filterCopyTokens(filterTokens, userInfo);
+        
+        
+        let sortedUpdateCopyToken = sortTokenByPrice(updateCopyToken);
+        if(userInfo !== null) {
+            const limitTokenCount = userInfo.membership.maxCopyTokens;
+            if(sortedUpdateCopyToken.length > limitTokenCount) {
+                sortedUpdateCopyToken = sortedUpdateCopyToken.slice(0, limitTokenCount);
+            }
+        }
         let totalTargetTokenPrice = 0;
         let totalTargetPrice = 0;
         if(!isNonCopyToken){
-            totalTargetTokenPrice = updateCopyToken.reduce((total, token) => total + Number(token.tokenPrice), 0);
+            totalTargetTokenPrice = sortedUpdateCopyToken.reduce((total, token) => total + Number(token.tokenPrice), 0);
         } else {
             totalTargetTokenPrice = 0;
         }
         totalTargetPrice = totalTargetTokenPrice + sol_balance.price;
-        return {isNonCopyToken, updateCopyToken, totalTargetTokenPrice, totalTargetPrice, solTargetToken:{ amount: solBalance, price: sol_balance.price, nativePrice: sol_balance.nativePrice}};
+        return {isNonCopyToken, updateCopyToken: sortedUpdateCopyToken, totalTargetTokenPrice, totalTargetPrice, solTargetToken:{ amount: solBalance, price: sol_balance.price, nativePrice: sol_balance.nativePrice}};
     } catch (error) {
         console.error('Error fetching portfolio:', error);
         return [];
@@ -524,8 +535,8 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
     return {isSafe, requestData};
 }
 
-export const detectWallet = async (targetWallet, tradeWallet) => {
-    const copyDetectResult = await detectCopyTokens(targetWallet);
+export const detectWallet = async (targetWallet, tradeWallet, userInfo) => {
+    const copyDetectResult = await detectCopyTokens(targetWallet, userInfo);
     const pasteDetectResult = await detectPasteTokens(tradeWallet);    
     const safe = await isSafeBalance(copyDetectResult, pasteDetectResult);
     console.log('isSafe---', safe);

@@ -5,11 +5,19 @@ const MembershipSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  name: {
+    type: String,
+    required: true
+  },
   price: {
     type: Number,
     required: true
   },
   maxCopyTokens: {
+    type: Number,
+    required: true
+  },
+  maxBots: {
     type: Number,
     required: true
   },
