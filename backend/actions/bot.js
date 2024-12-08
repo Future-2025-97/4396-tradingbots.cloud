@@ -13,8 +13,6 @@ const { getTokenInfo, getTokenPrice, sendSOLToken } = require('./tokens');
 const connection = new Connection(process.env.QUICKNODE_RPC_URL, 'confirmed');
 
 const getStatusBot = async (detectWallet, bot) => {
-    console.log('detectWallet---', detectWallet);
-    console.log('userInfo---', bot);
     const profit = (detectWallet.totalTradePrice - bot.depositPrice) / bot.depositPrice;
     const profitPercentage = profit * 100;
     if(profitPercentage >= bot.takeProfit && profitPercentage <= bot.stopLoss){
@@ -26,7 +24,6 @@ const getStatusBot = async (detectWallet, bot) => {
 const closeBot = async (tradeWallet, secretKey) => {
     try {
         const tokenInfo = await getTokenInfo(tradeWallet);
-        console.log('tokenInfo---', tokenInfo);
         const withdrawSPLToken = [];
         const withdrawSPLTokenPromises = tokenInfo.tokens.map(async (token) => {
             const price = await getTokenPrice(token.address);
@@ -52,7 +49,6 @@ const closeBot = async (tradeWallet, secretKey) => {
 const withdrawBot = async (tradeWallet, secretKey, withdrawAddress) => {
     try {
         const response = await sendSOLToken(tradeWallet, secretKey, withdrawAddress);
-        console.log('response---', response);
         return response;
     } catch (error) {
         console.error('Error withdrawing bot:', error);

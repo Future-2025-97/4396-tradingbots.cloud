@@ -22,7 +22,6 @@ const checkAllBots = async () => {
           await closeBot(bot.tradeWallet, bot.secretKey);
           await Trade.updateOne({ 'depositWallets.wallet': bot.tradeWallet.toString() }, { $set: { 'isTrading': false } });
           await Bot.findByIdAndUpdate(bot._id, { $set: { isFinished: true } });
-          console.log(`Bot ${bot.tradeWallet} closed successfully`);
           return `Bot ${bot.tradeWallet} closed successfully`;
         }
       }
@@ -30,7 +29,6 @@ const checkAllBots = async () => {
         const endTime = Date.now(); // End time
         const duration = (endTime - startTime) / 1000; // Duration in seconds
         console.log(`Processed ${bots.length} bots in ${duration} seconds`);
-        console.log('checkAllBots finished');
         return 'checkAllBots finished';
     }
 };

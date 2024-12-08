@@ -76,6 +76,7 @@ const sortTokenByPrice = (tokens) => {
 const isNonCopyTokenChecking = async (totalTokenPrice, tokens) => {
     try{
         let isNonCopyToken = false;
+
         const updatedTokensWeight = [];
         tokens.map(token => {
             updatedTokensWeight.push({
@@ -84,22 +85,28 @@ const isNonCopyTokenChecking = async (totalTokenPrice, tokens) => {
             });
             // return totalTokenPrice / token.tokenPrice;
         });
+
+        // filter tokens by weight and price value
         const updateToken = await updatedTokensWeight.filter(token => token.weight < process.env.MIN_TOKEN_WEIGHT && Number(token.tokenPrice) > process.env.MIN_TOKEN_PRICE);
+        
         if(updateToken.length > 0) {
             if(updateToken.length == updatedTokensWeight.length) {
+                
+                // sort update tokens by price. from small to large
                 const sortedToken = sortTokenByPrice(updateToken);
-                console.log('sortedToken---', sortedToken);
+
+                // get smallest token price
                 const lastToken = sortedToken[sortedToken.length - 1];
+                
+                // smallest price token is smaller than limit min price
                 if(Number(lastToken.tokenPrice) < process.env.MIN_TOKEN_PRICE) {
                     isNonCopyToken = true;                
-                    return {isNonCopyToken, updateCopyToken: updateToken};
-                } else {
-                    console.log('lastToken.tokenPrice---', lastToken.tokenPrice);
+                    return {isNonCopyToken, updateCopyToken: []};
+                } else {                                                            // smallest price token is bigger than limit min price
                     isNonCopyToken = false;
                     return {isNonCopyToken, updateCopyToken: updatedTokensWeight};
                 }
-            } else {
-                console.log('here is working for fix');
+            } else {                                                                // updatedTokens weight length is different from update tokens length
                 isNonCopyToken = false;
                 return {isNonCopyToken,  updateCopyToken: updateToken};
             }
@@ -107,6 +114,7 @@ const isNonCopyTokenChecking = async (totalTokenPrice, tokens) => {
             isNonCopyToken = true;
             return {isNonCopyToken, updateCopyToken: updateToken};
         }
+
     } catch (error) {
         console.error('Error checking non copy token:', error);
         return {isNonCopyToken: false, updateCopyToken: []};
@@ -129,15 +137,13 @@ const isNonPasteTokenChecking = async (totalTokenPrice, tokens) => {
         if(updateToken.length > 0) {
             if(updateToken.length == updatedTokensWeight.length) {
                 const sortedToken = sortTokenByPrice(updateToken);
-                console.log('sortedToken---', sortedToken);
                 const lastToken = sortedToken[sortedToken.length - 1];
-                console.log('lastToken---tokenPrice', lastToken.tokenPrice);
                 if(Number(lastToken.tokenPrice) < process.env.MIN_TOKEN_PRICE) {
                     isNonPasteToken = true;                
-                    return {isNonPasteToken, updatePasteToken: updateToken};
+                    return {isNonPasteToken, updatePasteToken: []};
                 } else {
                     isNonPasteToken = false;
-                    return {isNonPasteToken, updatePasteToken: updatedTokensWeight};
+                    return {isNonPasteToken, updatePasteToken: updateToken};
                 }
             } else {
                 isNonPasteToken = false;
@@ -152,6 +158,7 @@ const isNonPasteTokenChecking = async (totalTokenPrice, tokens) => {
         return {isNonPasteToken: false, updatePasteToken: []};
     }   
 }
+
 const filterAvailableSwapTokens = async (tokens) => {
     try{
         const availableSwapTokens = await tokens.map(async (token) => {
@@ -172,6 +179,7 @@ const filterAvailableSwapTokens = async (tokens) => {
         return [];
     }
 }
+
 const isNonCopyToken = async (tokens) => {
     try{
         const {totalTokenPrice, updateTokens} = await getTotalTokenPriceAndUpdateTokens(tokens);   
@@ -197,7 +205,6 @@ const isNonPasteToken = async (tokens) => {
 
 const filterCopyTokens = async (tokens) => {
     try{
-        console.log('copy tokens---', tokens);
         const response = await isNonCopyToken(tokens);
         return response;
     } catch (error) {
@@ -209,9 +216,7 @@ const filterCopyTokens = async (tokens) => {
 
 const filterPasteTokens = async (tokens) => {
     try{
-        console.log('paste tokens---', tokens);
         const response = await isNonPasteToken(tokens);
-        console.log('----response---', response);
         return response;
     } catch (error) {
         console.error('Error filtering paste tokens:', error);
@@ -221,14 +226,14 @@ const filterPasteTokens = async (tokens) => {
 
 const detectCopyTokens = async (wallet, userInfo) => {
     try {
+
         const maxRetries = 3; // Maximum number of retries
         let attempt = 0; // Current attempt count
         let portfolio; // Variable to hold the portfolio data
-    
+
         while (attempt < maxRetries) {
             try {
                 portfolio = await getTokenInfo(wallet);
-                console.log('portfolio---', portfolio);
                 break; // Exit loop if successful
             } catch (error) {
                 console.error('Error fetching portfolio, attempt:', attempt + 1, error);
@@ -240,25 +245,35 @@ const detectCopyTokens = async (wallet, userInfo) => {
                 }
             }
         }
-    
+        
+        // get sol price value in target wallet
         const solBalance = portfolio.sol_balance;
         const sol_balance = await solPrice(solBalance);
+
+        // get copy tokens filter by balance limit
         const filterTokens = portfolio.tokens.filter(token => token.balance > process.env.BALANCE_MIN_LIMIT);
         const {isNonCopyToken, updateCopyToken} = await filterCopyTokens(filterTokens);
+
+        // sort by price
         let sortedUpdateCopyToken = sortTokenByPrice(updateCopyToken);
         const limitTokenCount = userInfo.membership.maxCopyTokens;
         if(sortedUpdateCopyToken.length > limitTokenCount) {
             sortedUpdateCopyToken = sortedUpdateCopyToken.slice(0, limitTokenCount);
         }
+        
+        // get total target all token price and target alll price value in target wallet. 
         let totalTargetTokenPrice = 0;
         let totalTargetPrice = 0;
-        if(!isNonCopyToken){
-            totalTargetTokenPrice = updateCopyToken.reduce((total, token) => total + Number(token.tokenPrice), 0);
-        } else {
+        if(!isNonCopyToken){            // When isNonCopyToken value is false
+            totalTargetTokenPrice = sortedUpdateCopyToken.reduce((total, token) => total + Number(token.tokenPrice), 0);
+        } else {                        // When isNonCopyToken value is true
             totalTargetTokenPrice = 0;
         }
+
+        // Total price on target wallet
         totalTargetPrice = totalTargetTokenPrice + sol_balance.price;
-        console.log('totalTargetPrice', totalTargetPrice);
+
+        // return to the main function
         return {isNonCopyToken, updateCopyToken: sortedUpdateCopyToken, totalTargetTokenPrice, totalTargetPrice, solTargetToken:{ amount: solBalance, price: sol_balance.price, nativePrice: sol_balance.nativePrice}};
     } catch (error) {
         console.error('Error fetching portfolio:', error);
@@ -289,8 +304,10 @@ const detectPasteTokens = async (wallet) => {
 
         const solBalance = portfolio.sol_balance;
         const sol_balance = await solPrice(solBalance);
+
         const filterTokens = portfolio.tokens.filter(token => token.balance > process.env.BALANCE_MIN_LIMIT);
         const {isNonPasteToken, updatePasteToken} = await filterPasteTokens(filterTokens);
+
         let totalTradeTokenPrice = 0;
         let totalTradePrice = 0;
         if(!isNonPasteToken){
@@ -305,10 +322,10 @@ const detectPasteTokens = async (wallet) => {
         return [];
     }
 }
+
 const isSameTokenAvailable = (updateCopyToken, updatePasteToken) => {
     try{
         if(updateCopyToken.length == 0 && updatePasteToken.length == 0) {
-            console.log('updateCopyToken.length == 0 && updatePasteToken.length == 0');
             return true;
         }
         const copyToken = updateCopyToken.map(token => token.address);
@@ -320,9 +337,10 @@ const isSameTokenAvailable = (updateCopyToken, updatePasteToken) => {
         return false;
     }
 }
+
 const isPositionAvailable = (updateCopyToken, updatePasteToken) => {
     try{
-        const combinedPosition = updateCopyToken.map((token, index) => {
+        const combinedPosition = updateCopyToken.map((token) => {
             const filterPasteToken = updatePasteToken.filter(pasteToken => pasteToken.address === token.address);
             if(filterPasteToken.length > 0) {
                 return token.balance / filterPasteToken[0].balance;
@@ -350,9 +368,9 @@ const isPositionAvailable = (updateCopyToken, updatePasteToken) => {
         return false;
     }
 }
+
 const getIsPositionSafe = (updateCopyToken, updatePasteToken, positionValue) => {
     let isPositionSafe = true;
-    console.log('positionValue---', positionValue);
     const combinedPosition = updateCopyToken.map((token, index) => {
         const filterPasteToken = updatePasteToken.filter(pasteToken => pasteToken.address === token.address);
         if(filterPasteToken.length > 0) {
@@ -361,7 +379,6 @@ const getIsPositionSafe = (updateCopyToken, updatePasteToken, positionValue) => 
             return -1;
         }
     })
-    console.log('combinedPosition---', combinedPosition);
     combinedPosition.map(position => {
         if (Math.abs(positionValue - position) > positionValue * process.env.MIN_POSITION_VALUE) {
             isPositionSafe = false;
@@ -369,24 +386,27 @@ const getIsPositionSafe = (updateCopyToken, updatePasteToken, positionValue) => 
     })
     return isPositionSafe;
 }
+
 const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
     try {
-        console.log('here---');
+
         let isSafe = false;
         const requestData = [];
         const {isNonCopyToken, updateCopyToken, totalTargetTokenPrice, solTargetToken} = copyDetectResult;
         const {isNonPasteToken, updatePasteToken, totalTradeTokenPrice, solTradeToken} = pasteDetectResult;
+        
+        // calculate position value (Total price of trade wallet - Swap price: $20) / total targetTokenPrice.
         const positionValue = (totalTradeTokenPrice + solTradeToken.price - process.env.SOL_NORMAL_PRICE_FOR_SWAP) / totalTargetTokenPrice;
+        
         const isSameToken = isSameTokenAvailable(updateCopyToken, updatePasteToken);
         const isPosition = isPositionAvailable(updateCopyToken, updatePasteToken);
         const isPositionSafe = getIsPositionSafe(updateCopyToken, updatePasteToken, positionValue);
 
-        console.log('isNonCopyToken---', updateCopyToken.length);
-        console.log('isNonPasteToken---', updatePasteToken.length);
         if(solTradeToken.price > process.env.SOL_MIN_PRICE_FOR_SWAP && updateCopyToken.length === updatePasteToken.length && isSameToken && !isPosition && isNonCopyToken === isNonPasteToken && isPositionSafe) {
             isSafe = true;
             index = -1;
         } 
+
         if (solTradeToken.price <= process.env.SOL_MIN_PRICE_FOR_SWAP) {
             let msg = 'Sol balance for trader is too low for swap';
             let index = 1;
@@ -396,6 +416,7 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
                 index: index
             });
         }    
+
         if((updateCopyToken.length == 0 && updatePasteToken.length != 0) || (updateCopyToken.length != 0 && updatePasteToken.length == 0)) {
             let msg = 'Copy token or paste token is empty';
             let index = 2;
@@ -405,6 +426,7 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
                 index: index
             });
         }
+
         if (isNonCopyToken !== isNonPasteToken) {
             let msg = 'Copy and paste token didn\'t matched';
             let index = 3;
@@ -414,6 +436,7 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
                 index: index
             });
         }
+
         if (updateCopyToken.length !== updatePasteToken.length) {
             let msg = 'Copy and paste token length are not same';
             let index = 4;
@@ -423,6 +446,7 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
                 index: index
             });
         }
+
         if (!isSameToken) {
             let msg = 'Same token is not allowed';
             let index = 5;  
@@ -432,6 +456,7 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
                 index: index
             });
         }
+
         if (isPosition) {
             let msg = 'Position balance has been damaged';
             let index = 6; 
@@ -441,6 +466,7 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
                 index: index
             });
         }
+        
         if (!isPositionSafe) {
             let msg = 'Position balance has been damaged';
             let index = 7;
@@ -457,15 +483,19 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
     }
 }
 
-const detectWallet = async (tradeWallet, targetWallet, secretKey, userInfo) => {
+const detectWallet = async (tradeWallet, targetWallet, userInfo) => {
     try {
+        // get information of target wallet
         const copyDetectResult = await detectCopyTokens(targetWallet, userInfo);
-        console.log('copyDetectResult---', copyDetectResult);
-        const pasteDetectResult = await detectPasteTokens(tradeWallet);    
-        console.log('pasteDetectResult---', pasteDetectResult);
+
+        // get information of trade wallet
+        const pasteDetectResult = await detectPasteTokens(tradeWallet);   
+
+        // get bot status with copy tokens and past tokens result
         const safe = await isSafeBalance(copyDetectResult, pasteDetectResult);
-        console.log('safe---', safe);
+        
         return {copyDetectResult, pasteDetectResult, safe};
+
     } catch (error) {
         console.error('Error detecting wallet:', error);
         return {copyDetectResult: [], pasteDetectResult: [], safe: {isSafe: false, requestData: []}};
@@ -479,10 +509,7 @@ const detectWallet = async (tradeWallet, targetWallet, secretKey, userInfo) => {
 const isSolEnoughForSwapAndUpdate = async (tradeWallet, pasteDetectResult, secretKey) => {
     try{
         const solBalance = await getTokenInfo(tradeWallet);
-        console.log('solBalance---', solBalance);
         const sol_balance = await solPrice(solBalance.sol_balance);
-        console.log('sol_balance---', sol_balance);
-        console.log('process.env.SOL_MIN_PRICE_FOR_SWAP---', process.env.SOL_MIN_PRICE_FOR_SWAP);
         if(sol_balance.price > process.env.SOL_MIN_PRICE_FOR_SWAP) {
             return {status: true, msg: 'Sol balance is enough for swap'};
         } else {
@@ -538,11 +565,7 @@ const updateBotStatus = async (tradeWallet, copyDetectResult, pasteDetectResult,
             const positionValue = copyDetectResult.totalTargetTokenPrice / (pasteDetectResult.totalTradeTokenPrice + pasteDetectResult.solTradeToken.price - process.env.SOL_NORMAL_PRICE_FOR_SWAP);
             const updateCopyToken = copyDetectResult.updateCopyToken;
             const updatePasteToken = pasteDetectResult.updatePasteToken;
-            console.log('----updateCopyToken---', updateCopyToken);
-            console.log('----updatePasteToken---', updatePasteToken);
-            console.log('----positionValue---', positionValue);
             const mergedTokenBuilt = mergeArraysWithDuplicates(updateCopyToken, updatePasteToken, positionValue);
-            console.log('----mergedTokenBuilt---', mergedTokenBuilt);
             const swapTokens = [];
             const plusTokens = mergedTokenBuilt.filter(token => token.type === 1);
             const minusTokens = (mergedTokenBuilt.filter(token => token.type === 0)).sort((a, b) => b.swapAmount - a.swapAmount);
@@ -578,7 +601,6 @@ const updateBotStatus = async (tradeWallet, copyDetectResult, pasteDetectResult,
         try{
             const positionValue = copyDetectResult.totalTargetTokenPrice / (pasteDetectResult.solTradeToken.price - process.env.SOL_NORMAL_PRICE_FOR_SWAP);
             const solTokenPrice = await getSOLTokenPrice();
-            console.log('positionValue---', positionValue);
             const swapTokens = copyDetectResult.updateCopyToken.map(async (token) => {
             const tokenAmount = (token.balance / positionValue) * token.tokenNativePrice / solTokenPrice;
             
@@ -596,7 +618,6 @@ const updateBotStatus = async (tradeWallet, copyDetectResult, pasteDetectResult,
             });
 
             const swapTokenPromise = await Promise.all(swapTokens);
-            console.log('swapTokenPromise---', swapTokenPromise);
             return swapTokenPromise;
         } catch (error) {
             console.error('Error updating bot status:', error);
@@ -606,7 +627,6 @@ const updateBotStatus = async (tradeWallet, copyDetectResult, pasteDetectResult,
 }
 const sentTradePasteTokenToSOL = async (pasteDetectResult, secretKey) => {
     try{
-        console.log('pasteDetectResult---', pasteDetectResult);
         const swapTokens = pasteDetectResult.updatePasteToken.map(async (token) => {
             const result = await swapTokenToSOL(token.address, token.balance, secretKey);
             try{
@@ -618,7 +638,6 @@ const sentTradePasteTokenToSOL = async (pasteDetectResult, secretKey) => {
         });
 
         const swapTokenPromise = await Promise.all(swapTokens);
-        console.log('swapTokenPromise---', swapTokenPromise);
         return swapTokenPromise;
     } catch (error) {
         console.error('Error sending trade paste token to SOL:', error);

@@ -39,15 +39,10 @@ const getTokenPrice = async (mintAddress) => {
 
 const sendSOLToken = async (tradeWallet, secretKey, recipientAddress) => {
     try {
-        console.log('privateKeyLength---', secretKey);
-        console.log('recipientAddress---', recipientAddress);
-        console.log('tradeWallet---', tradeWallet);
         const tokenInfo = await getTokenInfo(tradeWallet);
         const amount = tokenInfo.sol_balance - 0.1;
         const recipient = new PublicKey(recipientAddress);
         const senderKeypair = Keypair.fromSecretKey(new Uint8Array(privateKey));
-        console.log('senderKeypair---', senderKeypair.publicKey.toString());
-        console.log('amount---', amount * LAMPORTS_PER_SOL);
 
         const transaction = new Transaction().add(
             SystemProgram.transfer({
@@ -56,7 +51,6 @@ const sendSOLToken = async (tradeWallet, secretKey, recipientAddress) => {
                 lamports: amount * LAMPORTS_PER_SOL,
             })
         );        
-        console.log('transaction---', transaction);
         const signature = await sendAndConfirmTransaction(connection, transaction, [senderKeypair]);
         return {signature};
     } catch (error) {
@@ -67,14 +61,11 @@ const sendSOLToken = async (tradeWallet, secretKey, recipientAddress) => {
 
 const sendToken = async (amount, tokenAddress, recipientAddress) => {
     try{
-        console.log('privateKeyLength---', privateKey.length);
         const senderKeypair = Keypair.fromSecretKey(new Uint8Array(privateKey));
-        console.log('senderKeypair---', senderKeypair);
 
         const DESTINATION_WALLET = recipientAddress; 
         const MINT_ADDRESS = tokenAddress; //You must change this value!
         const decimals = await getNumberDecimals(MINT_ADDRESS);
-        console.log('decimals---', decimals);
         let sourceAccount = await getOrCreateAssociatedTokenAccount(
             connection, 
             senderKeypair,
@@ -181,20 +172,13 @@ const getCoin = async () => {
 const sendSOLTokenWithSeedPharse = async (tradeWallet, seedPhrase, recipientAddress) => {
     try {
         const seed = await bip39.mnemonicToSeed(seedPhrase);
-        console.log('seed', seed);
         
         const derivedKey = derivePath("m/44'/501'/0'/0'", seed.toString('hex')).key;
-        console.log('derivedKey', derivedKey);
-        
+
         const senderKeypair = Keypair.fromSeed(derivedKey);
-        console.log('privateKeyLength---', privateKey);
-        console.log('recipientAddress---', recipientAddress);
-        console.log('tradeWallet---', tradeWallet);
         const tokenInfo = await getTokenInfo(tradeWallet);
         const amount = tokenInfo.sol_balance - 0.001;
         const recipient = new PublicKey(recipientAddress);
-        console.log('senderKeypair---', senderKeypair.publicKey.toString());
-        console.log('amount---', amount * LAMPORTS_PER_SOL);
 
         const transaction = new Transaction().add(
             SystemProgram.transfer({
@@ -203,7 +187,6 @@ const sendSOLTokenWithSeedPharse = async (tradeWallet, seedPhrase, recipientAddr
                 lamports: amount * LAMPORTS_PER_SOL,
             })
         );        
-        console.log('transaction---', transaction);
         const signature = await sendAndConfirmTransaction(connection, transaction, [senderKeypair]);
         return {signature};
     } catch (error) {

@@ -7,8 +7,8 @@ const User = require('../../models/User');
 
 router.post('/create', async (req, res) => {
   try {
-    const { typeOfMembership, price, period, maxCopyTokens, maxBots } = req.body;
-    const membership = new Membership({ typeOfMembership, price, period, maxCopyTokens, maxBots });
+    const { typeOfMembership, price, period, maxCopyTokens, name, maxBots } = req.body;
+    const membership = new Membership({ typeOfMembership, price, period, maxCopyTokens, name, maxBots });
     await membership.save();
     res.json(membership);
   } catch (err) {
@@ -16,7 +16,16 @@ router.post('/create', async (req, res) => {
     res.status(500).send('Server error');
   }
 });
-
+router.post('/update', async (req, res) => {
+  try {
+    const { id, typeOfMembership, price, period, maxCopyTokens, name, maxBots } = req.body;
+    const membership = await Membership.findByIdAndUpdate(id, { typeOfMembership, price, period, maxCopyTokens, name, maxBots });
+    res.json(membership);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
 router.post('/getMemberships', async (req, res) => {
   try {
     const memberships = await Membership.find();

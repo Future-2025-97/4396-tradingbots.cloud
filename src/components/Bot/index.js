@@ -101,7 +101,7 @@ const Bot = ({bot, setTradingBots, userInfo}) => {
     useEffect(() => {
         getDetectBalance();
         // if(userInfo !== null) {
-            const interval = setInterval(() => getDetectBalance(), 60000); // Poll every 2mins
+            const interval = setInterval(() => getDetectBalance(), 10000); // Poll every 2mins
             // console.log('isWorking---', isWorking);
             return () => clearInterval(interval); // Cleanup on unmount
         // } else {

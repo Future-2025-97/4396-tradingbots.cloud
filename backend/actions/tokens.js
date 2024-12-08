@@ -31,15 +31,10 @@ const getTokenPrice = async (mintAddress) => {
 
 const sendSOLToken = async (tradeWallet, secretKey, recipientAddress) => {
     try {
-        console.log('privateKeyLength---', secretKey);
-        console.log('recipientAddress---', recipientAddress);
-        console.log('tradeWallet---', tradeWallet);
         const tokenInfo = await getTokenInfo(tradeWallet);
         const amount = tokenInfo.sol_balance - 0.001;
         const recipient = new PublicKey(recipientAddress);
         const senderKeypair = Keypair.fromSecretKey(new Uint8Array(privateKey));
-        console.log('senderKeypair---', senderKeypair.publicKey.toString());
-        console.log('amount---', amount * LAMPORTS_PER_SOL);
 
         const transaction = new Transaction().add(
             SystemProgram.transfer({
@@ -120,13 +115,18 @@ const getTokenInfo = async (wallet) => {
             bytes: wallet,  //our search criteria, a base58 encoded string
           },            
         }];
+
     const accounts = await connection.getParsedProgramAccounts(
         TOKEN_PROGRAM_ID, //new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
-        {filters: filters}
+        {filters: filters, dataSlice: {offset: 0, length: 2}}
     );
-    const tokens = [];
+    // console.log('accounts---', accounts);
+    // const tokens = [];
     let balance = await connection.getBalance(new PublicKey(wallet)) / LAMPORTS_PER_SOL;
-
+    // accounts.sort((a, b) => b.account.data.parsed.info.tokenAmount.uiAmount - a.account.data.parsed.info.tokenAmount.uiAmount);
+    // const tokens = accounts.slice(0, 10);
+    console.log('accounts---', accounts.length);
+    const tokens = [];
     accounts.forEach((account, i) => {
         //Parse the account data
         const parsedAccountInfo = account.account.data;
@@ -135,20 +135,98 @@ const getTokenInfo = async (wallet) => {
         const tokenBalance = parsedAccountInfo["parsed"]["info"]["tokenAmount"]["uiAmount"];
         const tokenDecimals = parsedAccountInfo["parsed"]["info"]["tokenAmount"]["decimals"];
         //Log results
-        if(tokenBalance > 0){
-            tokens.push({
-                address: mintAddress,
-                balance: tokenBalance,
-                decimals: tokenDecimals
-            });
+        if(tokenBalance > 100){
+            tokens.push({mintAddress, tokenBalance, tokenDecimals});
         }
     });
+    console.log('tokens---', tokens.length);
+    const tokensSlice = tokens.sort((a, b) => b.tokenBalance - a.tokenBalance).slice(0, 300);
+    return tokensSlice;
     
+    const birdEyeApiKey = process.env.BIRD_EYE_API_KEY;
+
+    const birdEyeResponsePromise = await tokensSlice.map(async res => {
+        const birdEyeUrl = `${process.env.BIRD_EYE_URL}defi/price?address=${res}`;
+        console.log('birdEyeUrl---', birdEyeUrl);
+        
+        const fetchWithRetry = async (url, options, retries = 5, delay = 1000) => {
+            try {
+                const birdEyeResponse = await fetch(url, options);
+                if (!birdEyeResponse.ok) {
+                    if (birdEyeResponse.status === 429 && retries > 0) { // Too Many Requests
+                        console.log('Too Many Requests, retrying...');
+                        await new Promise(res => setTimeout(res, delay)); // Wait for delay
+                        return fetchWithRetry(url, options, retries - 1, delay); // Retry
+                    }
+                    throw new Error(`HTTP error! status: ${birdEyeResponse.status}`);
+                }
+                return await birdEyeResponse.json();
+            } catch (error) {
+                console.error('Fetch error:', error);
+                throw error; // Rethrow error after logging
+            }
+        };
+
+        const response = await fetchWithRetry(birdEyeUrl, {
+            method: 'GET',
+            headers: {
+                accept: 'application/json',
+                'X-API-KEY': birdEyeApiKey,
+                'x-chain': 'solana'
+            }
+        });
+        return response;
+    });
+
+    const birdEyeResponse = await Promise.all(birdEyeResponsePromise);
+    console.log('birdEyeResponse---', birdEyeResponse);    
     return {
         sol_balance: balance,
-        tokens,
+        birdEyeResponse,
     };
 }
+
+// const getTokenInfo = async (wallet) => {
+//     const filters = [
+//         {
+//           dataSize: 165,    //size of account (bytes)
+//         },
+//         {
+//           memcmp: {
+//             offset: 32,     //location of our query in the account (bytes)
+//             bytes: wallet,  //our search criteria, a base58 encoded string
+//           },            
+//         }];
+//     const accounts = await connection.getParsedProgramAccounts(
+//         TOKEN_PROGRAM_ID, //new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+//         {filters: filters}
+//     );
+//     // console.log('acc', accounts)
+//     const tokens = [];
+//     let balance = await connection.getBalance(new PublicKey(wallet)) / LAMPORTS_PER_SOL;
+
+//     accounts.forEach((account, i) => {
+//         //Parse the account data
+//         const parsedAccountInfo = account.account.data;
+
+//         const mintAddress = parsedAccountInfo["parsed"]["info"]["mint"];
+//         const tokenBalance = parsedAccountInfo["parsed"]["info"]["tokenAmount"]["uiAmount"];
+//         const tokenDecimals = parsedAccountInfo["parsed"]["info"]["tokenAmount"]["decimals"];
+//         //Log results
+//         if(tokenBalance > 0){
+//             tokens.push({
+//                 address: mintAddress,
+//                 balance: tokenBalance,
+//                 decimals: tokenDecimals
+//             });
+//         }
+//     });
+//     console.log('tokens---', tokens);
+//     return {
+//         sol_balance: balance,
+//         tokens,
+//     };
+// }
 
 module.exports = {
   sendToken,

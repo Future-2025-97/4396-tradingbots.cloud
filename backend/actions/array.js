@@ -1,8 +1,5 @@
 const mergeArraysWithDuplicates = (copyToken, pasteToken, positionValue) => {
     try{
-        console.log('----copyToken---', copyToken);
-        console.log('----pasteToken---', pasteToken);
-        console.log('----positionValue---', positionValue);
         const result = [];
         const idSet = new Set(pasteToken.map(item => item.address)); // Track ids from array2
 

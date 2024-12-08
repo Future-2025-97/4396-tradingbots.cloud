@@ -5,7 +5,6 @@ const { Wallet } = require('@coral-xyz/anchor');
 const { Connection, PublicKey, Keypair, Transaction, VersionedTransaction, TransactionMessage } = require('@solana/web3.js');
 const axios = require('axios');
 const { verifyTransactionSignature } = require('./transaction');
-// const raydiumSwapOut = require('./swapBaseOut');
 
 /**
  * Performs a token swap on the Raydium protocol.
@@ -34,6 +33,7 @@ const getPoolId = async (tokenAddress, SOL_ADDRESS) => {
   }
     // return poolId.data.pairs[0].poolId;
 }
+
 const swapSOLToToken = async (tokenAddress, amount, secretKey) => {
   try{
     const numArray = secretKey.split(',').map(Number);
@@ -42,25 +42,22 @@ const swapSOLToToken = async (tokenAddress, amount, secretKey) => {
     const privateKeyBuffer = Buffer.from(numArray);
 
     // Output the private key buffer
-    console.log('privateKeyBuffer', privateKeyBuffer);
     const wallet = new Wallet(Keypair.fromSecretKey(Uint8Array.from(privateKeyBuffer)));
-    console.log('wallet', wallet);
     /**
      * The RaydiumSwap instance for handling swaps.
      */
     const SOL_ADDRESS = process.env.SOLTOKEN_ADDRESS;
-    console.log(`Raydium swap initialized swap sol to token`);
-    console.log(`Swapping ${amount} of ${SOL_ADDRESS} for ${tokenAddress}...`)
 
   /**
    * Load pool keys from the Raydium API to enable finding pool information.
    */
   const POOL_ID = await getPoolId(tokenAddress, SOL_ADDRESS);
   const poolKeys = await raydiumSwap.loadPoolKeys(POOL_ID);
+  console.log("pool keys", poolKeys);
   /**
    * Find pool information for the given token pair.
    */
-  // return poolKeys;
+
   const poolInfo = raydiumSwap.findPoolInfoForTokens(tokenAddress, SOL_ADDRESS);
   if (!poolInfo) {
     console.error('Pool info not found');
@@ -125,9 +122,7 @@ const swapTokenToSOL = async (tokenAddress, amount, secretKey) => {
     const privateKeyBuffer = Buffer.from(numArray);
 
     // Output the private key buffer
-    console.log('privateKeyBuffer', privateKeyBuffer);
     const wallet = new Wallet(Keypair.fromSecretKey(Uint8Array.from(privateKeyBuffer)));
-    console.log('wallet', wallet);
     /**
      * The RaydiumSwap instance for handling swaps.
      */
@@ -140,10 +135,11 @@ const swapTokenToSOL = async (tokenAddress, amount, secretKey) => {
      */
     const POOL_ID = await getPoolId(tokenAddress, SOL_ADDRESS);
     const poolKeys = await raydiumSwap.loadPoolKeys(POOL_ID);
+    console.log("poolKeys", poolKeys);
     /**
      * Find pool information for the given token pair.
      */
-    // return poolKeys;
+
     const poolInfo = raydiumSwap.findPoolInfoForTokens(tokenAddress, SOL_ADDRESS);
     if (!poolInfo) {
       console.error('Pool info not found');
@@ -155,7 +151,7 @@ const swapTokenToSOL = async (tokenAddress, amount, secretKey) => {
     // /**
     //  * Prepare the swap transaction with the given parameters.
     //  */
-    // console.log('swapConfig.direction***', swapConfig.direction);
+
     const tx = await raydiumSwap.getSwapTransaction(
       SOL_ADDRESS,
       amount,

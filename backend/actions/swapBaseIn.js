@@ -138,9 +138,6 @@ const getSwapTransaction = async (
   try{
     const directionIn = poolKeys.quoteMint.toString() == toToken
     const { minAmountOut, amountIn } = await calcAmountOut(poolKeys, amount, directionIn)
-    console.log({ minAmountOut, amountIn });
-    console.log('amountIn', amountIn.toFixed());
-    console.log('minAmountOut', minAmountOut.toFixed());
     const userTokenAccounts = await getOwnerTokenAccounts(wallet)
     const swapTransaction = await Liquidity.makeSwapInstructionSimple({
       connection,

@@ -10,6 +10,7 @@ const raydiumSwap = require('../../actions/swapBaseIn');
 const axios = require('axios');
 const { closeBot, withdrawBot, getStatusBot } = require('../../actions/bot');
 const { getCoin } = require('../../actions/coin');
+const { getTokenInfo } = require('../../actions/tokens');
 
 router.get('/getCoin', async (req, res) => {
   try {
@@ -154,15 +155,18 @@ router.post('/withdrawBot', async (req, res) => {
 
 router.post('/sendSignal', async (req, res) => {
   try{
-    console.log('sendSignal');
     const { wallet } = req.body;
     const bot = await Bot.findOne({ tradeWallet: wallet });
-    console.log('bot---', bot);
     const userInfo = await User.findOne({ userWallet: bot.userWallet }).populate('membership');
 
-    const { copyDetectResult, pasteDetectResult, safe } = await detectWallet(wallet, bot.targetWallet, bot.secretKey, userInfo);
-    const isStopLossAndProfit = await getStatusBot(pasteDetectResult, bot);
+    // console.log('bot---', bot);
+    // const tokenInfo = await getTokenInfo(wallet);
+    // res.json(tokenInfo);
 
+    const { copyDetectResult, pasteDetectResult, safe } = await detectWallet(wallet, bot.targetWallet, userInfo);
+
+    // Current status of trade wallet is reached to SL and and TP
+    const isStopLossAndProfit = await getStatusBot(pasteDetectResult, bot);
     if(isStopLossAndProfit == false){
       if (!safe.isSafe) {
         const updateResponse = await Bot.findOneAndUpdate({ tradeWallet: wallet }, { $set: { isWorking: true } });
