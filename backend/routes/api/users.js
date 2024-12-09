@@ -61,6 +61,7 @@ router.post('/connectWallet', async (req, res) => {
 
 router.post('/getUserInfo', async (req, res) => {
   const { wallet } = req.body;
+  console.log('wallet---', wallet);
   try {
     const user = await User.findOne({ userWallet: wallet }).populate('membership');;
     res.json(user);
@@ -69,5 +70,9 @@ router.post('/getUserInfo', async (req, res) => {
     res.status(500).send('Server error');
   }
 });
-
+router.get('/deleteUsersInfo', async (req, res) => {
+  // const { wallet } = req.body;
+  await User.deleteMany({});
+  res.json({ msg: 'Users deleted successfully' });
+});
 module.exports = router;

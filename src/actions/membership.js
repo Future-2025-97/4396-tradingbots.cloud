@@ -17,6 +17,7 @@ const checkIsUsing = (userInfo) => {
             const diffTime = now - createdAt; // Difference in milliseconds
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); // Convert to days
             console.log('diffDays---', diffDays);
+            console.log('userInfo.membership.period---', userInfo.membership.period);
             if (diffDays >= userInfo.membership.period) {
                 return false;
             }

@@ -93,9 +93,9 @@ const ContentTitle = () => {
             setMemberShipInfo(membership);
         }
         const fetchUserInfo = async () => {
-            const userInfo = await api.getUserInfo(account);
-            console.log('userInfo---', userInfo);
-            setUserInfo(userInfo);
+            const response = await api.getUserInfo(account);
+            console.log('response---', response);
+            setUserInfo(response);
         }        
         fetchUserInfo();
         fetchDepositWallets();
@@ -242,7 +242,7 @@ const ContentTitle = () => {
                 </div>
             </div>
             {
-                isOpenMemberShip && (
+                isOpenMemberShip && memberShipInfo.length > 0 && userInfo !== null && (
                     <div>
                         <Membership memberShipInfo={memberShipInfo} userInfo={userInfo} account={account} />
                     </div>
