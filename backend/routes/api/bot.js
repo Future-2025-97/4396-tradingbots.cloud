@@ -9,18 +9,7 @@ const { sendToken } = require('../../actions/tokens');
 const raydiumSwap = require('../../actions/swapBaseIn');
 const axios = require('axios');
 const { closeBot, withdrawBot, getStatusBot } = require('../../actions/bot');
-const { getCoin } = require('../../actions/coin');
 const { getTokenInfo } = require('../../actions/tokens');
-
-router.get('/getCoin', async (req, res) => {
-  try {
-    const response = await getCoin();
-    res.json(response);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
-});
 
 router.post('/createTradingBot', async (req, res) => {
   try {
@@ -35,26 +24,25 @@ router.post('/createTradingBot', async (req, res) => {
       isStopLoss,
       createdTime
      } = req.body;
-
+     console.log('req.body---', req.body);
      const user = await User.findOne({ userWallet: userWallet }).populate('membership');
+     console.log('user---', user);
      if (!user) {
       return res.status(400).json({ msg: 'User not found' });
      }
-     const botCount = await Bot.countDocuments({ userWallet: userWallet });
+     const botCount = await Bot.countDocuments({ userWallet: userWallet, isFinished: false });
      if (botCount > user.membership.maxBots) {
       return res.status(400).json({ msg: 'Max bots reached' });
      }
-
-     const trade = await Trade.findOne({ 'depositWallets.wallet': tradeWallet.value }, { depositWallets: 1 });
+     console.log('tradeWallet---', tradeWallet);
+     const tradeWallets = await Trade.findOne({ userWallet: userWallet, depositWallets: { $elemMatch: { isTrading: false } } });
 
      await Trade.updateOne({ 'depositWallets.wallet': tradeWallet.value }, { $set: { 'depositWallets.$.isTrading': true } });
-
-     const matchingWallets = trade ? trade.depositWallets.filter(wallet => wallet.wallet === tradeWallet.value) : [];
-
+     const matchingWallets = tradeWallets ? tradeWallets.depositWallets.filter(wallet => wallet.wallet === tradeWallet.value) : [];
+     console.log('matchingWallets---', matchingWallets);
      if (!matchingWallets.length) {
       return res.status(400).json({ msg: 'Trade wallet not found' });
      }
-     console.log('depositValue---', depositValue);
      const {price, nativePrice} = await solPrice(depositValue);
      const secretKey = matchingWallets[0].secretKey;
 
@@ -74,8 +62,8 @@ router.post('/createTradingBot', async (req, res) => {
       createdTime: createdTime,
       secretKey: secretKey
      })
-     await bot.save();
-     res.json(bot);
+     const savedBot = await bot.save();
+     res.json({bot: savedBot, tradeWallets});
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
@@ -126,8 +114,9 @@ router.post('/closeBot', async (req, res) => {
 
     console.log('res---', response);
     await Bot.findByIdAndUpdate(botId, { $set: { isFinished: true } });
-    res.json({ msg: 'Bot closed successfully' });
-
+    const updatedBot = await Bot.findById(botId);
+    console.log('updatedBot---', updatedBot);
+    res.json({ bot: updatedBot, msg: 'Bot closed successfully' });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
@@ -141,12 +130,8 @@ router.post('/withdrawBot', async (req, res) => {
     console.log('botId---', botId);
     const bot = await Bot.findById(botId);
     const response = await withdrawBot(bot.tradeWallet, bot.secretKey, withdrawAddress);
-    if (response.error) {
-      return res.status(400).json({ msg: response.error });
-    }
-    console.log('response---', response);
     await Bot.findByIdAndUpdate(botId, { $set: { isWithdraw: true } });
-    res.json({ msg: response.signature });
+    res.json({ msg: response.signature, error: false });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
@@ -156,30 +141,28 @@ router.post('/withdrawBot', async (req, res) => {
 router.post('/sendSignal', async (req, res) => {
   try{
     const { wallet } = req.body;
+    console.log('wallet---', wallet);
     const bot = await Bot.findOne({ tradeWallet: wallet });
     const userInfo = await User.findOne({ userWallet: bot.userWallet }).populate('membership');
 
-    // console.log('bot---', bot);
-    // const tokenInfo = await getTokenInfo(wallet);
-    // res.json(tokenInfo);
-
     const { copyDetectResult, pasteDetectResult, safe } = await detectWallet(wallet, bot.targetWallet, userInfo);
-
-    // Current status of trade wallet is reached to SL and and TP
+    
+    // // Current status of trade wallet is reached to SL and and TP
     const isStopLossAndProfit = await getStatusBot(pasteDetectResult, bot);
     if(isStopLossAndProfit == false){
       if (!safe.isSafe) {
-        const updateResponse = await Bot.findOneAndUpdate({ tradeWallet: wallet }, { $set: { isWorking: true } });
+        await Bot.findOneAndUpdate({ tradeWallet: wallet }, { $set: { isWorking: true } });
         const result = await mainWorking(bot.targetWallet, bot.tradeWallet, bot.secretKey, copyDetectResult, pasteDetectResult, safe);
+        console.log('result---', result);
         return res.json({result});
       }
     } else {
+      console.log('bot close');
       await closeBot(bot.tradeWallet, bot.secretKey);
-      await Trade.updateOne({ 'depositWallets.wallet': bot.tradeWallet.toString() }, { $set: { 'isTrading': false } });
+      await Trade.updateOne({ 'depositWallets.wallet': bot.tradeWallet.toString() }, { $set: { 'depositWallets.$.isTrading': false } });
       await Bot.findByIdAndUpdate(bot._id, { $set: { isFinished: true } });
       return res.json({ msg: 'Bot closed successfully' });
     }
-
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');

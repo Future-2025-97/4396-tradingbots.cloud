@@ -62,16 +62,22 @@ const Bot = ({bot, setTradingBots, userInfo}) => {
     const closeBot = async (botId) => {
         console.log('botId---', botId);
         const res = await api.closeBot(botId);
-        setCloseModal(false);      
+        console.log('res---', res);
+        console.log('res.bot---', res.bot);
+        let bot = [];
+        bot.push(res.bot);
         setIsClosed(true);
-        setIsWithdraw(true);
+        setIsWithdraw(false);
+        setCloseModal(false);      
+        setTradingBots(bot);
         toast.success(`${res.msg}`);
     }
     const getDetectBalance = async () => {
+        console.log('userInfo---', userInfo);
+        // if(isFinished) {
+        //     return;
+        // }
         const {copyDetectResult, pasteDetectResult, safe} = await detectWallet(targetWallet, tradeWallet, userInfo);
-        console.log('copyDetectResult---', copyDetectResult);
-        console.log('pasteDetectResult---', pasteDetectResult);
-        console.log('safe---', safe);
         setTargetBalance(copyDetectResult.totalTargetPrice);
         setTradeBalance(pasteDetectResult.totalTradePrice);
         setTargetSolToken(copyDetectResult.solTargetToken);
@@ -100,15 +106,8 @@ const Bot = ({bot, setTradingBots, userInfo}) => {
 
     useEffect(() => {
         getDetectBalance();
-        // if(userInfo !== null) {
-            const interval = setInterval(() => getDetectBalance(), 10000); // Poll every 2mins
-            // console.log('isWorking---', isWorking);
-            return () => clearInterval(interval); // Cleanup on unmount
-        // } else {
-        //     const interval = setInterval(() => getDetectBalance(), 1000); // Poll every 2mins
-        //     // console.log('isWorking---', isWorking);
-        //     return () => clearInterval(interval); 
-        // }
+        const interval = setInterval(() => getDetectBalance(), 60000); // Poll every 2mins
+        return () => clearInterval(interval); // Cleanup on unmount
     }, [targetWallet, userInfo]);
 
     const withdrawBot = async (botId, withdrawAddress) => {
@@ -116,10 +115,16 @@ const Bot = ({bot, setTradingBots, userInfo}) => {
         console.log('withdrawAddress---', withdrawAddress);
         const res = await api.withdrawBot(botId, withdrawAddress);
         console.log('res---', res);
-        setWithdrawModal(false);
-        setIsWithdraw(false);
-        toast.success(api.customToastWithSignature(`${res.msg}`));
-        setTradingBots([]);
+        if(res.error === false) {
+            setWithdrawModal(false);
+            setIsWithdraw(false);
+            toast.success(api.customToastWithSignature(`${res.msg}`));
+            setTradingBots([]);
+        } else {
+            toast.error(`Try again later`);
+            setWithdrawModal(false);
+            setWithdrawAddress('');
+        }
     }
     return (
         <div>
@@ -167,7 +172,7 @@ const Bot = ({bot, setTradingBots, userInfo}) => {
                     <div className={`btn btn-danger ${isClosed ? 'disabled' : ''}`} onClick={() => setCloseModal(true)}>
                         Close
                     </div>
-                    {isWithdraw && (
+                    {isClosed && (
                         <div className='btn btn-success mx-4' onClick={() => setWithdrawModal(true)}>Withdraw</div>
                     )}
                 </div>  

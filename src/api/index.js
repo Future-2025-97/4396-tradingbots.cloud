@@ -16,7 +16,6 @@ const api = {
     customToastWithSignature: (message) => {
         return (
             <div>
-                <br />
                 <a href={`${process.env.REACT_APP_SOLSCAN_API_URL}/tx/${message}`} target='_blank' rel='noopener noreferrer'>View on Solscan</a>
             </div>
         );

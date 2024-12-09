@@ -15,7 +15,7 @@ router.post('/getDepositWallets', async (req, res) => {
     if (!isExist) {
       return res.status(400).json({ msg: 'Trade not found' });
     }
-    const { depositWallets } = await Trade.findOne({ userWallet: wallet });
+    const { depositWallets } = await Trade.findOne({ userWallet: wallet, depositWallets: { $elemMatch: { isTrading: false } } });
     const depositWalletsArray = depositWallets
     .filter(wallet => !wallet.isTrading) // Filter out wallets that are trading
     .map(wallet => ({

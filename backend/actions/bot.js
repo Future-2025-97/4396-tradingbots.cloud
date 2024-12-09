@@ -13,12 +13,29 @@ const { getTokenInfo, getTokenPrice, sendSOLToken } = require('./tokens');
 const connection = new Connection(process.env.QUICKNODE_RPC_URL, 'confirmed');
 
 const getStatusBot = async (detectWallet, bot) => {
-    const profit = (detectWallet.totalTradePrice - bot.depositPrice) / bot.depositPrice;
-    const profitPercentage = profit * 100;
-    if(profitPercentage >= bot.takeProfit && profitPercentage <= bot.stopLoss){
-        return true;
+    if(detectWallet.totalTradePrice > bot.depositPrice){
+        const profit = (detectWallet.totalTradePrice - bot.depositPrice) / bot.depositPrice;
+        const profitPercentage = profit * 100;
+        console.log('profitPercentage---', profitPercentage);
+        if(profitPercentage >= bot.takeProfit){
+            return true;
+        }
+    } else if(detectWallet.totalTradePrice < bot.depositPrice){
+        const loss = (bot.depositPrice - detectWallet.totalTradePrice) / bot.depositPrice;
+        const lossPercentage = loss * 100;
+        console.log('lossPercentage---', lossPercentage);
+        if(lossPercentage >= bot.stopLoss){
+            return true;
+        }
     }
     return false;
+    // const profit = (detectWallet.totalTradePrice - bot.depositPrice) / bot.depositPrice;
+    // const profitPercentage = profit * 100;
+    // // console.log('profitPercentage---', profitPercentage);
+    // if(profitPercentage >= bot.takeProfit || profitPercentage <= bot.stopLoss){
+    //     return true;
+    // }
+    // return false;
 }
 
 const closeBot = async (tradeWallet, secretKey) => {

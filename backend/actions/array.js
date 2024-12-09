@@ -4,6 +4,7 @@ const mergeArraysWithDuplicates = (copyToken, pasteToken, positionValue) => {
         const idSet = new Set(pasteToken.map(item => item.address)); // Track ids from array2
 
         copyToken.forEach(item => {
+            console.log('item---', item);
             if (idSet.has(item.address)) {
                 // If the id exists in pasteToken, add the corresponding item from pasteToken
                 const correspondingItem = pasteToken.find(i => i.address === item.address);
@@ -11,7 +12,7 @@ const mergeArraysWithDuplicates = (copyToken, pasteToken, positionValue) => {
                 let swapAmount = 0;
                 if(item.balance / positionValue > correspondingItem.balance) {
                     type = 0;
-                    swapAmount = correspondingItem.balance - item.balance * positionValue;
+                    swapAmount = item.balance * positionValue - correspondingItem.balance;
                 } else {
                     type = 1;
                     swapAmount = correspondingItem.balance - item.balance / positionValue;
@@ -22,23 +23,23 @@ const mergeArraysWithDuplicates = (copyToken, pasteToken, positionValue) => {
                     info: correspondingItem.info, 
                     symbol: correspondingItem.symbol, 
                     tokenNativePrice: correspondingItem.tokenNativePrice,
-                    tokenPrice: correspondingItem.tokenPrice,
+                    tokenPrice: correspondingItem.tokenPrice / positionValue,
                     type: type,
                     swapAmount: swapAmount
                 });
             } else {
                 type = 0;
-                swapAmount = item.balance;
+                swapAmount = item.balance / positionValue;
                 // If the id does not exist in pasteToken, add with undefined name
                 result.push({ 
                     address: item.address, 
-                    balance: undefined, 
+                    balance: 0, 
                     info: item.info,
                     type: type,
                     swapAmount: swapAmount,
                     symbol: item.symbol,
                     tokenNativePrice: item.tokenNativePrice,
-                    tokenPrice: item.tokenPrice,
+                    tokenPrice: item.tokenPrice / positionValue,
                 });
             }
         });

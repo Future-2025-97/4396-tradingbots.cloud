@@ -97,7 +97,7 @@ export const detectBalanceWallet = async (wallet) => {
                 return;
             }
             const tokenPriceResponse = await axios.get(`${process.env.REACT_APP_DEXSCREENER_API_URL}${token.address}`);
-            console.log('tokenPriceResponse---', tokenPriceResponse);
+            // console.log('tokenPriceResponse---', tokenPriceResponse);
             let findTokenInfo = false;
         
             if (tokenPriceResponse.data.pairs != null) {
@@ -136,15 +136,11 @@ export const detectBalanceWallet = async (wallet) => {
     }
 }
 const getTotalTokenPriceAndUpdateTokens = async (tokens) => {
-    console.log('tokens---', tokens);
     let totalTokenPrice = 0;
     const updateTokens = [];
     const tokenPricePromises = tokens.map(async (token) => {
-        console.log('token---', token);
         const tokenPriceResponse = await axios.get(`https://api.dexscreener.com/latest/dex/tokens/${token.address}`);
-            // console.log('tokenPriceResponse---', tokenPriceResponse);
             let findTokenInfo = false;
-            console.log('tokenPriceResponse---', tokenPriceResponse);
             if (tokenPriceResponse.data.pairs != null) {
                 for (const pair of tokenPriceResponse.data.pairs) { // Changed to for...of loop
                     if (findTokenInfo) {
@@ -154,19 +150,10 @@ const getTotalTokenPriceAndUpdateTokens = async (tokens) => {
                         
                             const tokenPrice = (Number(pair.priceUsd) * Number(token.balance)).toFixed(4);
                             findTokenInfo = true;
-                            console.log('/////tokenPrice---', tokenPrice);
                             if(tokenPrice > 1) {
-                                console.log('pair---', pair);
-                                console.log('tokenPrice---', tokenPrice);
-                                console.log('pair.priceUsd---', pair.priceUsd);
-                                console.log('token.balance---', token.balance);
-                                console.log('token---', token);
-                                console.log('pair.baseToken.symbol---', pair.baseToken.symbol);
                                 updateTokens.push({
                                     ...token,
-                                    symbol: pair.baseToken.symbol,
-                                    tokenNativePrice: pair.priceUsd,
-                                    tokenPrice: tokenPrice
+                                    symbol: pair.baseToken.symbol
                                 });
                                 totalTokenPrice += Number(pair.priceUsd) * Number(token.balance);
                                 
@@ -178,8 +165,8 @@ const getTotalTokenPriceAndUpdateTokens = async (tokens) => {
             }
     });
     await Promise.all(tokenPricePromises);
-    // console.log('response---', response);
-    return {totalTokenPrice, updateTokens};
+    const sortedTokens = updateTokens.sort((a, b) => b.tokenPrice - a.tokenPrice);
+    return {totalTokenPrice, updateTokens: sortedTokens};
 }
 const sortTokenByPrice = (tokens) => {
     tokens.sort((a, b) => b.tokenPrice - a.tokenPrice);
@@ -282,6 +269,7 @@ const filterAvailableSwapTokens = async (tokens) => {
 }
 const isNonCopyToken = async (tokens, userInfo) => {
     const {totalTokenPrice, updateTokens} = await getTotalTokenPriceAndUpdateTokens(tokens);
+    console.log('----updateTokens---', updateTokens);
     const availableSwapTokens = await filterAvailableSwapTokens(updateTokens);
     const response = await isNonCopyTokenChecking(totalTokenPrice, availableSwapTokens);
     return response;
@@ -327,9 +315,7 @@ const detectCopyTokens = async (wallet, userInfo) => {
     
         const solBalance = portfolio.sol_balance;
         const sol_balance = await solPrice(solBalance);
-        const filterTokens = portfolio.tokens.filter(token => token.balance > process.env.REACT_APP_BALANCE_MIN_LIMIT);
-        console.log('filterTokens---', filterTokens);
-        const {isNonCopyToken, updateCopyToken} = await filterCopyTokens(filterTokens, userInfo);
+        const {isNonCopyToken, updateCopyToken} = await filterCopyTokens(portfolio.tokens, userInfo);
         
         
         let sortedUpdateCopyToken = sortTokenByPrice(updateCopyToken);
@@ -373,7 +359,7 @@ const detectPasteTokens = async (wallet) => {
             }
         }
     }
-
+    console.log('portfolio---', portfolio);
     const solBalance = portfolio.sol_balance;
     const sol_balance = await solPrice(solBalance);
     const filterTokens = portfolio.tokens.filter(token => token.balance > process.env.REACT_APP_BALANCE_MIN_LIMIT);
@@ -405,7 +391,7 @@ const isSameTokenAvailable = (updateCopyToken, updatePasteToken) => {
     }
 }
 
-const isPositionAvailable = (updateCopyToken, updatePasteToken) => {
+const isPositionAvailable = (updateCopyToken, updatePasteToken, positionValue) => {
     
     const combinedPosition = updateCopyToken.map((token, index) => {
         const filterPasteToken = updatePasteToken.filter(pasteToken => pasteToken.address === token.address);
@@ -417,7 +403,7 @@ const isPositionAvailable = (updateCopyToken, updatePasteToken) => {
     })
     
     // Define a threshold for what constitutes an impulse
-    const threshold = process.env.REACT_APP_THRESHOLD_POSITION || 1;
+    const threshold = positionValue * (process.env.REACT_APP_THRESHOLD_POSITION_PERCENTAGE / 100);
 
     const hasImpulseValue = (arr, threshold) => {
         for (let i = 1; i < arr.length; i++) {
@@ -429,7 +415,6 @@ const isPositionAvailable = (updateCopyToken, updatePasteToken) => {
         return false; // No impulse value found
     };
     const exists = hasImpulseValue(combinedPosition, threshold);
-    console.log('exists---', exists);
     return exists;
 }
 const getIsPositionSafe = (updateCopyToken, updatePasteToken, positionValue) => {
@@ -462,7 +447,7 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
     const positionValue = totalTargetTokenPrice / (totalTradeTokenPrice + solTradeToken.price - process.env.REACT_APP_SOL_NORMAL_PRICE_FOR_SWAP);
     // console.log('positionValue---', positionValue);
     const isSameToken = isSameTokenAvailable(updateCopyToken, updatePasteToken);
-    const isPosition = isPositionAvailable(updateCopyToken, updatePasteToken);
+    const isPosition = isPositionAvailable(updateCopyToken, updatePasteToken, positionValue);
     const isPositionSafe = getIsPositionSafe(updateCopyToken, updatePasteToken, positionValue);
     console.log('isPositionSafe---', isPositionSafe);
     if(solTradeToken.price > process.env.REACT_APP_SOL_MIN_PRICE_FOR_SWAP && updateCopyToken.length === updatePasteToken.length && isSameToken && !isPosition && isNonCopyToken === isNonPasteToken && isPositionSafe) {
@@ -478,15 +463,6 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
             index: index
         });
     }
-    if (!isPositionSafe) {
-        let msg = 'Position balance has been damaged';
-        let index = 7;
-        isSafe = false;
-        requestData.push({
-            msg: msg,
-            index: index
-        });
-    }    
     if((updateCopyToken.length == 0 && updatePasteToken.length != 0) || (updateCopyToken.length != 0 && updatePasteToken.length == 0)) {
         let msg = 'Copy token or paste token is empty';
         let index = 2;
@@ -532,6 +508,15 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
             index: index
         });
     }
+    if (!isPositionSafe) {
+        let msg = 'Position balance has been damaged';
+        let index = 7;
+        isSafe = false;
+        requestData.push({
+            msg: msg,
+            index: index
+        });
+    }    
     return {isSafe, requestData};
 }
 
@@ -539,6 +524,5 @@ export const detectWallet = async (targetWallet, tradeWallet, userInfo) => {
     const copyDetectResult = await detectCopyTokens(targetWallet, userInfo);
     const pasteDetectResult = await detectPasteTokens(tradeWallet);    
     const safe = await isSafeBalance(copyDetectResult, pasteDetectResult);
-    console.log('isSafe---', safe);
     return {copyDetectResult, pasteDetectResult, safe};
 }

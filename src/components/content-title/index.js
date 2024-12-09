@@ -216,6 +216,8 @@ const ContentTitle = () => {
             setStopLossValue(50);
             setIsStopLoss(false);
             setIsTakeProfit(false);
+            setTradingBots([...tradingBots, response.data.bot]);
+            setDepositWallets([response.data.tradeWallets.depositWallets]);
         } else {
             toast.error(response);
         }

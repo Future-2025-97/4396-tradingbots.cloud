@@ -11,14 +11,14 @@ const { verifyTransactionSignature } = require('./transaction');
  * Depending on the configuration, it can execute the swap or simulate it.
  */
 const getPoolId = async (tokenAddress, SOL_ADDRESS) => {
-  try{
+  try {
     const poolResponse = await axios.get(`${process.env.DEXSCREENER_API_URL}${tokenAddress}`);
     const pairs = poolResponse.data.pairs;
     let findTokenInfo = false;
     for (const pair of pairs) { // Changed to for...of loop
       if (pair.dexId === 'raydium' && pair.baseToken.address === tokenAddress && pair.quoteToken.address === SOL_ADDRESS) {
         const poolKeys = await raydiumSwap.loadPoolKeys(pair.pairAddress);
-        if(poolKeys !== null){
+        if (poolKeys !== null) {
           findTokenInfo = true;
           return pair.pairAddress;
         }
@@ -31,11 +31,11 @@ const getPoolId = async (tokenAddress, SOL_ADDRESS) => {
     console.error('Error getting pool ID:', error);
     return null;
   }
-    // return poolId.data.pairs[0].poolId;
+  // return poolId.data.pairs[0].poolId;
 }
 
 const swapSOLToToken = async (tokenAddress, amount, secretKey) => {
-  try{
+  try {
     const numArray = secretKey.split(',').map(Number);
 
     // Step 2: Convert the array to a Buffer
@@ -48,60 +48,72 @@ const swapSOLToToken = async (tokenAddress, amount, secretKey) => {
      */
     const SOL_ADDRESS = process.env.SOLTOKEN_ADDRESS;
 
-  /**
-   * Load pool keys from the Raydium API to enable finding pool information.
-   */
-  const POOL_ID = await getPoolId(tokenAddress, SOL_ADDRESS);
-  const poolKeys = await raydiumSwap.loadPoolKeys(POOL_ID);
-  console.log("pool keys", poolKeys);
-  /**
-   * Find pool information for the given token pair.
-   */
+    /**
+     * Load pool keys from the Raydium API to enable finding pool information.
+     */
+    const POOL_ID = await getPoolId(tokenAddress, SOL_ADDRESS);
+    const poolKeys = await raydiumSwap.loadPoolKeys(POOL_ID);
+    // console.log("pool keys", poolKeys);
+    /**
+     * Find pool information for the given token pair.
+     */
 
-  const poolInfo = raydiumSwap.findPoolInfoForTokens(tokenAddress, SOL_ADDRESS);
-  if (!poolInfo) {
-    console.error('Pool info not found');
-    return 'Pool info not found';
-  } else {
-    console.log('Found pool info');
-  }
+    const poolInfo = raydiumSwap.findPoolInfoForTokens(tokenAddress, SOL_ADDRESS);
+    if (!poolInfo) {
+      console.error('Pool info not found');
+      return 'Pool info not found';
+    } else {
+      console.log('Found pool info');
+    }
 
-  // /**
-  //  * Prepare the swap transaction with the given parameters.
-  //  */
-  // console.log('swapConfig.direction***', swapConfig.direction);
-  const tx = await raydiumSwap.getSwapTransaction(
-    tokenAddress,
-    amount,
-    poolInfo,
-    swapConfig.maxLamports, 
-    swapConfig.useVersionedTransaction,
-    swapConfig.direction,
-    wallet
-  );
-  // /**
-  //  * Depending on the configuration, execute or simulate the swap.
-  try{
-    const simRes = swapConfig.useVersionedTransaction
-        ? await raydiumSwap.simulateVersionedTransaction(tx)
-        : await raydiumSwap.simulateLegacyTransaction(tx, wallet);
-      console.log('simRes---', simRes);
-      if(simRes.value.err === null){ 
-        console.log('simulate success');
+    // /**
+    //  * Prepare the swap transaction with the given parameters.
+    //  */
+    // console.log('swapConfig.direction***', swapConfig.direction);
+    const tx = await raydiumSwap.getSwapTransaction(
+      tokenAddress,
+      amount,
+      poolInfo,
+      swapConfig.maxLamports,
+      swapConfig.useVersionedTransaction,
+      swapConfig.direction,
+      wallet
+    );
+    // /**
+    //  * Depending on the configuration, execute or simulate the swap.
+    const MAX_RETRIES = 3; 
+    try {
+      let simRes;
+      let attempts = 0;
+
+      // Retry logic
+      while (attempts < MAX_RETRIES) {
+        simRes = swapConfig.useVersionedTransaction
+          ? await raydiumSwap.simulateVersionedTransaction(tx)
+          : await raydiumSwap.simulateLegacyTransaction(tx, wallet);
+
+        console.log('simRes---', simRes);
+        
+        if (simRes.value.err === null) {
+          console.log('simulate success');
           const txid = swapConfig.useVersionedTransaction
             ? await raydiumSwap.sendVersionedTransaction(tx, swapConfig.maxRetries, wallet)
             : await raydiumSwap.sendLegacyTransaction(tx, wallet);
-            console.log('txid---', txid);
-            const isSuccess = await verifyTransactionSignature(txid);
-            if(isSuccess){
-              return `https://solscan.io/tx/${txid}`;
-            } else {
-              return { Error: 'Transaction not found' };
-            }
-        } else{
-          console.log('simulate failed');
-          return {simRes, tx};
+          const isSuccess = await verifyTransactionSignature(txid);
+
+          if (isSuccess) {
+            return {result: `https://solscan.io/tx/${txid}`};
+          } else {
+            return { Error: 'Transaction not found' };
+          }
+        } else {
+          console.log('simulate failed, retrying...');
+          attempts++;
         }
+      }
+
+      // If all attempts fail
+      return { simRes, tx, error: 'Max retries reached' };
     } catch (error) {
       console.error('Error during swap:', error);
       return { error: error.message };
@@ -114,7 +126,7 @@ const swapSOLToToken = async (tokenAddress, amount, secretKey) => {
 
 
 const swapTokenToSOL = async (tokenAddress, amount, secretKey) => {
-  try{
+  try {
     console.log('swapTokenToSOL---', tokenAddress, amount, secretKey);
     const numArray = secretKey.split(',').map(Number);
 
@@ -156,33 +168,46 @@ const swapTokenToSOL = async (tokenAddress, amount, secretKey) => {
       SOL_ADDRESS,
       amount,
       poolInfo,
-      swapConfig.maxLamports, 
+      swapConfig.maxLamports,
       swapConfig.useVersionedTransaction,
       swapConfig.direction,
       wallet
     );
     // /**
     //  * Depending on the configuration, execute or simulate the swap.
-    try{
-          const simRes = swapConfig.useVersionedTransaction
-              ? await raydiumSwap.simulateVersionedTransaction(tx)
-              : await raydiumSwap.simulateLegacyTransaction(tx, wallet);
-              console.log('simRes---', simRes);
-          if(simRes.value.err === null){ 
-            console.log('simulate success');
-            const txid = swapConfig.useVersionedTransaction
-              ? await raydiumSwap.sendVersionedTransaction(tx, swapConfig.maxRetries, wallet)
-              : await raydiumSwap.sendLegacyTransaction(tx, wallet);
-            const isSuccess = await verifyTransactionSignature(txid);
-            if(isSuccess){
-              return `https://solscan.io/tx/${txid}`;
-            } else {
-              return { Error: 'Transaction not found' };
-            }
-          } else{
-            console.log('simulate failed');
-            return {simRes, tx};
+    const MAX_RETRIES = 3; 
+    try {
+      let simRes;
+      let attempts = 0;
+
+      // Retry logic
+      while (attempts < MAX_RETRIES) {
+        simRes = swapConfig.useVersionedTransaction
+          ? await raydiumSwap.simulateVersionedTransaction(tx)
+          : await raydiumSwap.simulateLegacyTransaction(tx, wallet);
+
+        console.log('simRes---', simRes);
+        
+        if (simRes.value.err === null) {
+          console.log('simulate success');
+          const txid = swapConfig.useVersionedTransaction
+            ? await raydiumSwap.sendVersionedTransaction(tx, swapConfig.maxRetries, wallet)
+            : await raydiumSwap.sendLegacyTransaction(tx, wallet);
+          const isSuccess = await verifyTransactionSignature(txid);
+
+          if (isSuccess) {
+            return {result: `https://solscan.io/tx/${txid}`};
+          } else {
+            return { Error: 'Transaction not found' };
           }
+        } else {
+          console.log('simulate failed, retrying...');
+          attempts++;
+        }
+      }
+
+      // If all attempts fail
+      return { simRes, tx, error: 'Max retries reached' };
     } catch (error) {
       console.error('Error during swap:', error);
       return { error: error.message };

@@ -18,7 +18,7 @@ app.use(cors({
 // Connect Database
 connectDB(mongoURI);
 
-cron.schedule('*/2 * * * *', async () => {
+cron.schedule('*/1 * * * *', async () => {
   console.log('checkAllBots');
   await checkAllBots();
 });

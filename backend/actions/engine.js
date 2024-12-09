@@ -9,9 +9,10 @@ const checkAllBots = async () => {
       const bots = await Bot.find({ isFinished: false }); // Fetch all active bots
       for (const bot of bots) {
         const userInfo = await User.findOne({ userWallet: bot.userWallet }).populate('membership');
-        const { copyDetectResult, pasteDetectResult, safe } = await detectWallet(bot.tradeWallet, bot.targetWallet, bot.secretKey, userInfo);
+        console.log('userInfo---', userInfo);
+        const { copyDetectResult, pasteDetectResult, safe } = await detectWallet(bot.tradeWallet, bot.targetWallet, userInfo);
         const isStopLossAndProfit = await getStatusBot(pasteDetectResult, bot);
-  
+        console.log('isStopLossAndProfit---', isStopLossAndProfit);
         if (isStopLossAndProfit == false) {
           if (!safe.isSafe) {
             await Bot.findOneAndUpdate({ tradeWallet: bot.tradeWallet }, { $set: { isWorking: true } });
@@ -19,8 +20,9 @@ const checkAllBots = async () => {
             return result;
           }
         } else {
+          console.log('bot close');
           await closeBot(bot.tradeWallet, bot.secretKey);
-          await Trade.updateOne({ 'depositWallets.wallet': bot.tradeWallet.toString() }, { $set: { 'isTrading': false } });
+          await Trade.updateOne({ 'depositWallets.wallet': bot.tradeWallet.toString() },  { $set: { 'depositWallets.$.isTrading': false } } );
           await Bot.findByIdAndUpdate(bot._id, { $set: { isFinished: true } });
           return `Bot ${bot.tradeWallet} closed successfully`;
         }

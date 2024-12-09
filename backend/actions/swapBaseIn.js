@@ -40,6 +40,7 @@ const loadPoolKeys = async (POOL_ID) => {
     const lpMintAccount = await connection.getAccountInfo(lpMint)
     if (lpMintAccount === null) throw Error(' get lp mint info error')
     const lpMintInfo = SPL_MINT_LAYOUT.decode(lpMintAccount.data)
+
     const poolInfo = {
       id:POOL_ID,
       baseMint: info.baseMint.toString(),
@@ -310,7 +311,7 @@ const calcAmountOut = async (poolKeys, rawAmountIn, swapInDirection) => {
     const currencyIn = new Token(TOKEN_PROGRAM_ID, currencyInMint, currencyInDecimals)
     const amountIn = new TokenAmount(currencyIn, rawAmountIn, false)
     const currencyOut = new Token(TOKEN_PROGRAM_ID, currencyOutMint, currencyOutDecimals)
-    const slippage = new Percent(10, 100) // 5% slippage
+    const slippage = new Percent(10, 100) // 10% slippage
     
     const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee } = Liquidity.computeAmountOut({
       poolKeys,

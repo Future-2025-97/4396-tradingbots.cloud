@@ -7,13 +7,6 @@ async function createPhantomAccount() {
     // Extract the public and private keys
     const publicKey = newKeypair.publicKey.toString();
     const secretKey = newKeypair.secretKey;
-
-
-    // Connect to the Solana Mainnet
-    // const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
-
-    // Check the balance of the new wallet
-    // const balance = await connection.getBalance(newKeypair.publicKey);
     
     return { publicKey, secretKey };
   } catch (error) {

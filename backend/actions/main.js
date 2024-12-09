@@ -43,9 +43,7 @@ const getTotalTokenPriceAndUpdateTokens = async (tokens) => {
                         if(tokenPrice > 1) {
                             updateTokens.push({
                                 ...token,
-                                symbol: pair.baseToken.symbol,
-                                tokenNativePrice: pair.priceUsd,
-                                tokenPrice: tokenPrice
+                                symbol: pair.baseToken.symbol
                             });
                             totalTokenPrice += Number(pair.priceUsd) * Number(token.balance);
                             
@@ -56,8 +54,9 @@ const getTotalTokenPriceAndUpdateTokens = async (tokens) => {
             }
         });
         await Promise.all(tokenPricePromises);
+        const sortedTokens = updateTokens.sort((a, b) => b.tokenPrice - a.tokenPrice);
         // console.log('response---', response);
-        return {totalTokenPrice, updateTokens};
+        return {totalTokenPrice, updateTokens: sortedTokens};
     } catch (error) {
         console.error('Error getting token price:', error);
         return {totalTokenPrice: 0, updateTokens: []};
@@ -233,7 +232,9 @@ const detectCopyTokens = async (wallet, userInfo) => {
 
         while (attempt < maxRetries) {
             try {
+                console.log('wallet---', wallet);
                 portfolio = await getTokenInfo(wallet);
+                console.log('portfolio---', portfolio);
                 break; // Exit loop if successful
             } catch (error) {
                 console.error('Error fetching portfolio, attempt:', attempt + 1, error);
@@ -253,7 +254,7 @@ const detectCopyTokens = async (wallet, userInfo) => {
         // get copy tokens filter by balance limit
         const filterTokens = portfolio.tokens.filter(token => token.balance > process.env.BALANCE_MIN_LIMIT);
         const {isNonCopyToken, updateCopyToken} = await filterCopyTokens(filterTokens);
-
+        console.log('updateCopyToken---', updateCopyToken);
         // sort by price
         let sortedUpdateCopyToken = sortTokenByPrice(updateCopyToken);
         const limitTokenCount = userInfo.membership.maxCopyTokens;
@@ -307,7 +308,7 @@ const detectPasteTokens = async (wallet) => {
 
         const filterTokens = portfolio.tokens.filter(token => token.balance > process.env.BALANCE_MIN_LIMIT);
         const {isNonPasteToken, updatePasteToken} = await filterPasteTokens(filterTokens);
-
+        console.log('updatePasteToken---', updatePasteToken);
         let totalTradeTokenPrice = 0;
         let totalTradePrice = 0;
         if(!isNonPasteToken){
@@ -338,7 +339,7 @@ const isSameTokenAvailable = (updateCopyToken, updatePasteToken) => {
     }
 }
 
-const isPositionAvailable = (updateCopyToken, updatePasteToken) => {
+const isPositionAvailable = (updateCopyToken, updatePasteToken, positionValue) => {
     try{
         const combinedPosition = updateCopyToken.map((token) => {
             const filterPasteToken = updatePasteToken.filter(pasteToken => pasteToken.address === token.address);
@@ -350,7 +351,7 @@ const isPositionAvailable = (updateCopyToken, updatePasteToken) => {
         })
 
         // Define a threshold for what constitutes an impulse
-        const threshold = process.env.THRESHOLD_POSITION || 1;
+        const threshold = positionValue * (process.env.THRESHOLD_POSITION_PERCENTAGE / 100);
 
         const hasImpulseValue = (arr, threshold) => {
             for (let i = 1; i < arr.length; i++) {
@@ -399,7 +400,7 @@ const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
         const positionValue = (totalTradeTokenPrice + solTradeToken.price - process.env.SOL_NORMAL_PRICE_FOR_SWAP) / totalTargetTokenPrice;
         
         const isSameToken = isSameTokenAvailable(updateCopyToken, updatePasteToken);
-        const isPosition = isPositionAvailable(updateCopyToken, updatePasteToken);
+        const isPosition = isPositionAvailable(updateCopyToken, updatePasteToken, positionValue);
         const isPositionSafe = getIsPositionSafe(updateCopyToken, updatePasteToken, positionValue);
 
         if(solTradeToken.price > process.env.SOL_MIN_PRICE_FOR_SWAP && updateCopyToken.length === updatePasteToken.length && isSameToken && !isPosition && isNonCopyToken === isNonPasteToken && isPositionSafe) {
@@ -558,72 +559,53 @@ const getSOLTokenPrice = async () => {
 //     console.log('swap token 2---');
 //     return true;
 // }
+
 // Update bot status
+
 const updateBotStatus = async (tradeWallet, copyDetectResult, pasteDetectResult, secretKey) => {
-    if(pasteDetectResult.updatePasteToken.length > 0) {
-        try{
-            const positionValue = copyDetectResult.totalTargetTokenPrice / (pasteDetectResult.totalTradeTokenPrice + pasteDetectResult.solTradeToken.price - process.env.SOL_NORMAL_PRICE_FOR_SWAP);
-            const updateCopyToken = copyDetectResult.updateCopyToken;
-            const updatePasteToken = pasteDetectResult.updatePasteToken;
-            const mergedTokenBuilt = mergeArraysWithDuplicates(updateCopyToken, updatePasteToken, positionValue);
-            const swapTokens = [];
-            const plusTokens = mergedTokenBuilt.filter(token => token.type === 1);
-            const minusTokens = (mergedTokenBuilt.filter(token => token.type === 0)).sort((a, b) => b.swapAmount - a.swapAmount);
+    try{
+        console.log('Main working function---');
+        const positionValue = copyDetectResult.totalTargetTokenPrice / (pasteDetectResult.totalTradeTokenPrice + pasteDetectResult.solTradeToken.price - process.env.SOL_NORMAL_PRICE_FOR_SWAP);
+        console.log('positionValue---', positionValue);
+        const updateCopyToken = copyDetectResult.updateCopyToken;
+        const updatePasteToken = pasteDetectResult.updatePasteToken;
+        const mergedTokenBuilt = mergeArraysWithDuplicates(updateCopyToken, updatePasteToken, positionValue);
 
-            const plusTokenResults = await Promise.all(plusTokens.map(async (token) => {
-                if(token.swapAmount * token.tokenNativePrice > process.env.TOKEN_MIN_PRICE_FOR_SWAP) {
-                    const result = await swapTokenToSOL(token.address, token.swapAmount, secretKey);
-                    return result;
-                }
-            }));
+        console.log('mergedTokenBuilt---', mergedTokenBuilt);
+        const swapTokens = [];
+        const plusTokens = mergedTokenBuilt.filter(token => token.type === 1);
+        const minusTokens = (mergedTokenBuilt.filter(token => token.type === 0)).sort((a, b) => b.swapAmount - a.swapAmount);
+        // return {plusTokens, minusTokens, mergedTokenBuilt};
 
-            swapTokens.push(...plusTokenResults); // Add results to swapTokens
-
-            if (plusTokenResults.some(result => result instanceof Error)) {
-                throw new Error('Error occurred in plusTokenResults');
-            }
-            // Then process type 0 tokens
-            const minusTokenResults = await Promise.all(minusTokens.map(async (token) => {
-                if(token.swapAmount * token.tokenNativePrice > process.env.TOKEN_MIN_PRICE_FOR_SWAP) {
-                    const updatedSwapAmount = token.swapAmount * token.tokenNativePrice / copyDetectResult.solTargetToken.nativePrice;
-                    const result = await swapSOLToToken(token.address, updatedSwapAmount, secretKey);
-                    return result;
-                }
-            }));
-
-            swapTokens.push(...minusTokenResults.filter(result => result)); 
-            return swapTokens; 
-        } catch (error) {
-            console.error('Error calculating position value:', error);
-            return [];
-        }
-    } else {
-        try{
-            const positionValue = copyDetectResult.totalTargetTokenPrice / (pasteDetectResult.solTradeToken.price - process.env.SOL_NORMAL_PRICE_FOR_SWAP);
-            const solTokenPrice = await getSOLTokenPrice();
-            const swapTokens = copyDetectResult.updateCopyToken.map(async (token) => {
-            const tokenAmount = (token.balance / positionValue) * token.tokenNativePrice / solTokenPrice;
-            
-            // let attempt = 0; // Current attempt count
-            // const maxAttempts = 5; // Maximum number of attempts for swapping
-            let confirm = false;
-            let pasteTokenBalance = 0;
-            const isPasteTokenAvailable = pasteDetectResult.updatePasteToken.find(pasteToken => pasteToken.address === token.address) ? confirm = true : confirm = false;
-            if(isPasteTokenAvailable) {
-                pasteTokenBalance = pasteDetectResult.updatePasteToken.find(pasteToken => pasteToken.address === token.address).balance;
-            }
-            
-            const result = await swapSOLToToken(token.address, tokenAmount, secretKey);
+        const plusTokenResults = await Promise.all(plusTokens.map(async (token) => {
+            if(token.swapAmount * token.tokenNativePrice > process.env.TOKEN_MIN_PRICE_FOR_SWAP) {
+                const result = await swapTokenToSOL(token.address, token.swapAmount, secretKey);
                 return result;
-            });
+            }
+        }));
 
-            const swapTokenPromise = await Promise.all(swapTokens);
-            return swapTokenPromise;
-        } catch (error) {
-            console.error('Error updating bot status:', error);
-            return [];
+        swapTokens.push(...plusTokenResults); // Add results to swapTokens
+
+        if (plusTokenResults.some(result => result instanceof Error)) {
+            throw new Error('Error occurred in plusTokenResults');
         }
-    }   
+
+        // Then process type 0 tokens
+        const minusTokenResults = await Promise.all(minusTokens.map(async (token) => {
+            if(token.swapAmount * token.tokenNativePrice > process.env.TOKEN_MIN_PRICE_FOR_SWAP) {
+                const updatedSwapAmount = token.swapAmount * token.tokenNativePrice / copyDetectResult.solTargetToken.nativePrice;
+                const result = await swapSOLToToken(token.address, updatedSwapAmount, secretKey);
+                return result;
+            }
+        }));
+
+        swapTokens.push(...minusTokenResults.filter(result => result)); 
+        return swapTokens; 
+    } catch (error) {
+        console.error('Error calculating position value:', error);
+        return [];
+    }
+   
 }
 const sentTradePasteTokenToSOL = async (pasteDetectResult, secretKey) => {
     try{
@@ -659,12 +641,8 @@ const mainWorking = async (targetWallet, tradeWallet, secretKey, copyDetectResul
     try{
         const isSolEngouh = await isSolEnoughForSwapAndUpdate(tradeWallet, pasteDetectResult, secretKey);
         if(isSolEngouh.status) {
-            updateBotStatus(tradeWallet, copyDetectResult, pasteDetectResult, secretKey);
-            const isEmptyCopyToken = isCopyTokenEmpty(safe.requestData);
-
-            if(isEmptyCopyToken) {
-                sentTradePasteTokenToSOL(pasteDetectResult, secretKey);
-            }
+            const res = await updateBotStatus(tradeWallet, copyDetectResult, pasteDetectResult, secretKey);
+            return res;
         } else {
             console.log('isSolEngouh---', isSolEngouh);
         }
