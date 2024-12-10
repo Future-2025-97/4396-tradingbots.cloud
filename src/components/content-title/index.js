@@ -74,7 +74,6 @@ const ContentTitle = () => {
         const fetchUserInfo = async () => {
             if(account){
                 const response = await api.getUserWalletCount(account);
-                console.log('response---', response);
                 setDepositWalletsCount(response.count);
                 setUserInfo(response.userInfo);
             }
@@ -126,13 +125,18 @@ const ContentTitle = () => {
     const generateWallet = async (e) => {
         e.preventDefault();
         try {
-            const wallet = await api.generateWalletAccount(account);
-            if (Array.isArray(wallet.depositWallets) && wallet.depositWallets.length > 0) {
-            const singleWalletArray = [];
-            for (let i = 0; i < wallet.depositWallets.length; i++) {
-                    singleWalletArray.push(wallet.depositWallets[i].wallet);
+            const res = await api.generateWalletAccount(account);
+            if(res.status === true){
+                console.log('res---', res);
+                if (Array.isArray(res.trade.depositWallets) && res.trade.depositWallets.length > 0) {
+                    const singleWalletArray = [];
+                    for (let i = 0; i < res.trade.depositWallets.length; i++) {
+                        singleWalletArray.push(res.trade.depositWallets[i].wallet);
+                    }
+                    const updatedWallets = singleWalletArray.slice(0, depositWalletsCount);
+                    console.log('singleWalletArray---', singleWalletArray);
+                    setDepositWallets(updatedWallets); // Return the new array containing one wallet object
                 }
-                setDepositWallets(singleWalletArray); // Return the new array containing one wallet object
             } else {
                 toast.error('You have reached the maximum number of wallets');
                 return []; // Return an empty array if no wallets are found
@@ -146,7 +150,6 @@ const ContentTitle = () => {
         try {
             e.preventDefault();
             const res = await depositCheck(tradeWallet, targetWallet, depositValue);
-            console.log('res---', res);
             if(res.error === true){
                 toast.error(res.msg);
                 return;
@@ -195,15 +198,14 @@ const ContentTitle = () => {
     const createTradingBot = async (e) => {
         e.preventDefault();
         const createdTime = Math.floor(new Date().getTime() / 1000);
-        // console.log(targetWallet);
         if (!tradeWallet || !targetWallet) {
             toast.error('Please fill in all fields');
             return;
         }
-        // if (depositedValue == 0) {
-        //     toast.error('You have to deposit tokens to trading wallet');
-        //     return;
-        // }
+        if (depositedValue == 0) {
+            toast.error('You have to deposit tokens to trading wallet');
+            return;
+        }
         const requestData = {
             userWallet: localStorage.getItem('wallet'),
             tradeWallet: tradeWallet,

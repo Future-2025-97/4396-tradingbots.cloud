@@ -97,7 +97,7 @@ const Membership = ({ memberShipInfo, userInfo, account }) => {
             <div className='member-ship-panel d-flex justify-content-center flex-wrap'>
                 { newMemberShipInfo.length > 0 && newMemberShipInfo.map((info) => {
                     return (
-                        <div className='text-center member-ship-item' id={info._id}>
+                        <div className='text-center member-ship-item' key={info._id}>
                             {info.typeOfMembership === 0 ? <h4 className='text-grey-light font-weight-bold'>Free Version</h4> : info.typeOfMembership === 1 ? <h4 className='text-success font-weight-bold'>Pro Version</h4> : <h4 className='text-warning font-weight-bold'>VIP Version</h4>}
                             <div className='text-white'>
                                 <span className='text-warning font-size-24'>{info.price}</span> SOL

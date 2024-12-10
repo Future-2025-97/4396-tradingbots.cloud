@@ -36,9 +36,10 @@ const checkIsUsing = (userInfo) => {
 }
 
 export const getMemberShipInfo = async (memberShipInfo, userInfo) => {
-    try {        
-        if (!userInfo) {
-            return memberShipInfo; // Return original memberShipInfo if userInfo is invalid
+    try {  
+        console.log('userInfo---', userInfo);
+        if (Object.keys(userInfo).length === 0) {
+            return []; // Early return if userInfo is empty
         }
         const newMemberShipInfoPromise = memberShipInfo.map((info) => {
             if(info.typeOfMembership === userInfo.membership.typeOfMembership){
