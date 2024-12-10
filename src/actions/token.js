@@ -37,14 +37,12 @@ export const getTokenInfo = async (wallet) => {
         }
     });
     const tokensUpdateAndSlice = tokens.sort((a, b) => b.balance - a.balance).slice(0, 300);   
-    console.log('tokensUpdateAndSlice---', tokensUpdateAndSlice);
     const requestDataForPrice = tokensUpdateAndSlice.map(token => token.address);
     const fetchWithRetry = async (url, options, retries = 5, delay = 600) => {
         try {
             const birdEyeResponse = await fetch(url, options);
             if (!birdEyeResponse.ok) {
                 if (birdEyeResponse.status === 429 && retries > 0) { // Too Many Requests
-                    console.log('Too Many Requests, retrying...');
                     await new Promise(res => setTimeout(res, delay)); // Wait for delay
                     return fetchWithRetry(url, options, retries - 1, delay); // Retry
                 }
@@ -70,7 +68,6 @@ export const getTokenInfo = async (wallet) => {
             const birdEyeUrl = `${process.env.REACT_APP_BIRD_EYE_URL}/defi/multi_price?check_liquidity=1&include_liquidity=true`;
             const requestDataString = chunk.join(',');
 
-            console.log('requestDataString---', requestDataString);
             const response = await fetchWithRetry(birdEyeUrl, {
                 method: 'POST',
                 headers: {

@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const config = require('../../config');
 const User = require('../../models/User');
+const Trade = require('../../models/Trade');
 const requestIp = require('request-ip');
 const Membership = require('../../models/Membership');
 const IPInfo = require('../../models/IPInfo');
@@ -63,13 +64,29 @@ router.post('/getUserInfo', async (req, res) => {
   const { wallet } = req.body;
   console.log('wallet---', wallet);
   try {
-    const user = await User.findOne({ userWallet: wallet }).populate('membership');;
+    const user = await User.findOne({ userWallet: wallet }).populate('membership');
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+    console.log('user before population---', user);
+    console.log('populated user---', user.membership); // Log the populated membership
     res.json(user);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
   }
 });
+
+router.post('/getUserWalletCount', async (req, res) => {
+  const { wallet } = req.body;
+  const user = await User.findOne({ userWallet: wallet }).populate('membership');
+  const botCount = await Trade.countDocuments({ userWallet: wallet, 'depositWallets.isTrading': true });
+  console.log('botCount---', botCount);
+  console.log('user---', user.membership.maxBots);
+  const tradeCount = user.membership.maxBots - botCount;
+  res.json({userInfo: user, count: tradeCount });
+});
+
 router.get('/deleteUsersInfo', async (req, res) => {
   // const { wallet } = req.body;
   await User.deleteMany({});

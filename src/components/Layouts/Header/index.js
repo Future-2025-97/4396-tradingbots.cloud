@@ -12,19 +12,15 @@ import {
     WalletMultiButton
 } from '@solana/wallet-adapter-react-ui';
 import { useAutoConnect } from '../../../context/AutoConnectProvider';
+import { useMediaQuery } from 'react-responsive';
+
 const Header = () => {
+    const isMobile = useMediaQuery({ query: '(max-width: 600px)' })
     const { autoConnect } = useAutoConnect();
     
     const { account, setAccount } = useContext(StoreContext);
     const [ isConnected, setIsConnected ] = useState(false);
     const { connected, wallet, connect, disconnect } = useWallet();
-
-    useEffect(() => {
-        // if (!connected) {
-        //     console.log('disconnect');
-        //     localStorage.removeItem('wallet');
-        // }
-    }, [connected]);
     
     useEffect(() => {
         if (connected || autoConnect) {
@@ -54,7 +50,7 @@ const Header = () => {
             <div className='header-logo d-flex align-items-center justify-content-between container'>
                 <div className='header-logo-icon d-flex align-items-center'>
                     <img src={logo} alt="logo" width={50} height={50} />
-                    <h4 className='mb-0 font-weight-bold'>Solana Copy Trading Bot</h4>
+                    <h4 className='mb-0 font-weight-bold'>{isMobile ? '' : 'Solana Copy Trading Bot'}</h4>
                 </div>
                 <div>
                     <WalletMultiButton/>

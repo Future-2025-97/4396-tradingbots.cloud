@@ -14,6 +14,7 @@ import bigInt from "big-integer";
 import { getUserBalance } from '../../actions/wallet';
 import { toast } from 'react-toastify';
 import api from '../../api';
+import axios from 'axios';
 
 const quickNodeUrl = process.env.REACT_APP_QUICKNODE_URL;
 const connection = new Connection(quickNodeUrl, 'confirmed');
@@ -29,22 +30,22 @@ const Membership = ({ memberShipInfo, userInfo, account }) => {
     const twoWeeksLater = new Date(today);
     twoWeeksLater.setDate(today.getDate() + 14); 
 
-    const formatDate = (date) => {
-        return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-    };
+    
     useEffect(() => {
         const fetchMemberShipInfo = async () => {
-            const res = await getMemberShipInfo(memberShipInfo, userInfo, account);
-            console.log('newMemberShipInfo---', res);
-            console.log('userInfo---', userInfo);
-            setNewMemberShipInfo(res);
+            if(userInfo){
+                const res = await getMemberShipInfo(memberShipInfo, userInfo);
+                setNewMemberShipInfo(res);
+            }
         }
         fetchMemberShipInfo();
-    }, [memberShipInfo, account, userInfo]);
-    const getMemberShip = async (price, membershipId) => {
+    }, [userInfo]);
+
+    const getMemberShip = async (price, membershipId, isUsing) => {
         try{
-            console.log('price---', price);
-            console.log('membershipId---', membershipId);
+            if(isUsing){
+                return;
+            }
             const senderPublicKey = new PublicKey(account);
             const recipientPublicKey = new PublicKey(process.env.REACT_APP_ADMIN_WALLET_ADDRESS);
             const senderBalance = await getUserBalance(account);
@@ -80,13 +81,12 @@ const Membership = ({ memberShipInfo, userInfo, account }) => {
             // Send transaction and await for signature
             let signature = await sendTransaction(transation, connection);
             const confirmation = await connection.confirmTransaction(signature, { commitment: 'confirmed' });
-            if (confirmation.value.confirmationStatus === 'confirmed') {
-                toast.success('Transaction successful');
-                api.post('/membership/update-membership', {
-                    account: account,
-                    membershipId: membershipId,
-                    signature: signature,
-                });
+
+            if (confirmation.value.confirmationStatus === 'confirmed') {   
+                const updatedUserInfo = await api.updateMembership(account, membershipId, signature);                     
+                if(updatedUserInfo){
+                    window.location.reload();          
+                }
             }
         } catch (error) {
             console.error('Error sending transaction:', error);
@@ -94,8 +94,8 @@ const Membership = ({ memberShipInfo, userInfo, account }) => {
     }
     return (
         <div className='membership-container'>
-            <div className='member-ship-panel d-flex justify-content-center'>
-                {newMemberShipInfo.map((info) => {
+            <div className='member-ship-panel d-flex justify-content-center flex-wrap'>
+                { newMemberShipInfo.length > 0 && newMemberShipInfo.map((info) => {
                     return (
                         <div className='text-center member-ship-item' id={info._id}>
                             {info.typeOfMembership === 0 ? <h4 className='text-grey-light font-weight-bold'>Free Version</h4> : info.typeOfMembership === 1 ? <h4 className='text-success font-weight-bold'>Pro Version</h4> : <h4 className='text-warning font-weight-bold'>VIP Version</h4>}
@@ -104,7 +104,7 @@ const Membership = ({ memberShipInfo, userInfo, account }) => {
                                 <h5 className='text-white'>Available token: {info.maxCopyTokens}</h5> 
                                 <h5 className='text-white'>Max bots: {info.maxBots}</h5>
                                 <p className='text-white'>Available copy trades period: {info.period} days</p> 
-                                {info.typeOfMembership == 0 ? <div className={`btn btn-primary mt-3 ${info.isUsing ? 'disabled' : 'disabled'}`}>{info.isUsing ? 'Using Now' : 'End'}</div> : <div className='btn btn-success mt-3' onClick={() => getMemberShip(info.price, info._id)}>{info.isUsing ? 'Using Now' : 'Buy Now'}</div>}
+                                {info.typeOfMembership == 0 ? <div className={`btn btn-primary mt-3 ${info.isUsing ? 'disabled' : 'disabled'}`}>{info.isUsing ? 'Using Now' : 'End'}</div> : <div className={`btn btn-success mt-3 ${info.isUsing ? 'disabled' : ''}`} onClick={() => getMemberShip(info.price, info._id, info.isUsing)}>{info.isUsing ? 'Using Now' : 'Buy Now'}</div>}
                              </div>
                         </div>  
                     )

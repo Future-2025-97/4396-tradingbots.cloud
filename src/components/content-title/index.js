@@ -28,6 +28,8 @@ import * as buffer from "buffer";
 import bigInt from "big-integer";
 import Bot from '../Bot';
 import Membership from '../MemberShip';
+import { useMediaQuery } from 'react-responsive';
+import { depositCheck } from '../../actions/deposit';
 
 const quickNodeUrl = process.env.REACT_APP_QUICKNODE_URL;
 const connection = new Connection(quickNodeUrl, 'confirmed');
@@ -38,11 +40,14 @@ const ContentTitle = () => {
     const [ userBalance, setUserBalance ] = useState(0);
     const [isOpenCreateTrade, setIsOpenCreateTrade] = useState(false);
     const [isOpenMemberShip, setIsOpenMemberShip] = useState(true);
-    const [tradeWallet, setTradeWallet] = useState();
+    const [tradeWallet, setTradeWallet] = useState(null);
     const [depositWallets, setDepositWallets] = useState([]);
     const [targetWallet, setTargetWallet] = useState();
     const [memberShipInfo, setMemberShipInfo] = useState([]);
     const [userInfo, setUserInfo] = useState({});
+    const isMobile = useMediaQuery({ query: '(max-width: 600px)' })
+
+    const [depositWalletsCount, setDepositWalletsCount] = useState(0);
 
     // Add new state variables for editable values
     const [isEditingTakeProfit, setIsEditingTakeProfit] = useState(false);
@@ -66,6 +71,15 @@ const ContentTitle = () => {
             };
             fetchUserBalance();
         }
+        const fetchUserInfo = async () => {
+            if(account){
+                const response = await api.getUserWalletCount(account);
+                console.log('response---', response);
+                setDepositWalletsCount(response.count);
+                setUserInfo(response.userInfo);
+            }
+        }        
+        fetchUserInfo();
     }, [account]);
 
     useEffect(() => {
@@ -74,7 +88,8 @@ const ContentTitle = () => {
                 try {
                     const fetchedOptions = await api.getDepositWallets();
                     const _depositWallets = fetchedOptions.map(val => (val));
-                    setDepositWallets(_depositWallets); // Set options if account is valid
+                    setDepositWallets(_depositWallets.slice(0, depositWalletsCount)); // Set options if account is valid
+
                 } catch (error) {
                     console.error('Error fetching deposit wallets:', error);
                 }
@@ -84,24 +99,18 @@ const ContentTitle = () => {
         };
         const fetchBots = async () => {
             const bots = await api.getBots(account);
-            console.log('bots---', bots);
             setTradingBots(bots);
         }
         const fetchMemberShipInfo = async () => {   
-            const membership = await api.getMemberShipInfo(account);
-            console.log('membership---', membership);
-            setMemberShipInfo(membership);
-        }
-        const fetchUserInfo = async () => {
-            const response = await api.getUserInfo(account);
-            console.log('response---', response);
-            setUserInfo(response);
+            if(account){    
+                const membership = await api.getMemberShipInfo(account);
+                setMemberShipInfo(membership);
+            }
         }        
-        fetchUserInfo();
         fetchDepositWallets();
         fetchBots();
         fetchMemberShipInfo();
-    }, [account])
+    }, [account, userInfo])
 
     const handleStopLossSave = (e) => {
         if (e.key === 'Enter') {
@@ -136,18 +145,21 @@ const ContentTitle = () => {
         window.Buffer = buffer.Buffer;
         try {
             e.preventDefault();
-            
+            const res = await depositCheck(tradeWallet, targetWallet, depositValue);
+            console.log('res---', res);
+            if(res.error === true){
+                toast.error(res.msg);
+                return;
+            }
             const senderPublicKey = new PublicKey(account);
             const recipientPublicKey = new PublicKey(tradeWallet.value);
             const senderBalance = await getUserBalance(account);
             const depositValueInLamports = depositValue * LAMPORTS_PER_SOL; // Convert depositVa
-            
             if (senderBalance * LAMPORTS_PER_SOL < depositValueInLamports) {
                 toast.error('Insufficient funds for the transaction.');
                 console.error('Insufficient funds for the transaction.');
                 return; // Exit the function if funds are insufficient
             }
-            console.log('depositValueInLamports', depositValueInLamports);
              // Create instructions to send, in this case a simple transfer
              const instructions = [
                 SystemProgram.transfer({
@@ -204,7 +216,6 @@ const ContentTitle = () => {
             createdTime: createdTime
         }
         const response = await api.createTradingBot(requestData);
-        console.log('response---', response);
         if (response.status === 200) {
             toast.success('Trading bot created successfully');
             setIsOpenCreateTrade(false);
@@ -242,7 +253,7 @@ const ContentTitle = () => {
                 </div>
             </div>
             {
-                isOpenMemberShip && memberShipInfo.length > 0 && userInfo !== null && (
+                isOpenMemberShip && memberShipInfo.length > 0 && userInfo.membership !== null && (
                     <div>
                         <Membership memberShipInfo={memberShipInfo} userInfo={userInfo} account={account} />
                     </div>
@@ -265,34 +276,34 @@ const ContentTitle = () => {
                             {/* <img src={importWallet} alt='logo' width={30} height={30} />
                             <h5 className="mx-2 align-middle mt-1">Import My Wallet</h5> */}
                         </div>
-                    <div className='card-panel w-49 d-flex justify-content-center'>
+                    <div className={`card-panel ${isMobile ? 'w-100' : 'w-49'} d-flex justify-content-center`}>
                         <PiCreditCardFill color='#f8dc62' size={35} className='align-self-center mx-3'/>
-                        <Dropdown controlClassName='control-class-wallet' menuClassName='menu-class' placeholderClassName='placeholder-class' options={depositWallets} onChange={(values) => setTradeWallet(values)} placeholder="Select wallet address" />
+                        <Dropdown className={`${isMobile ? 'base-class-wallet-mobile' : 'base-class-wallet'}`} controlClassName='control-class-wallet' menuClassName='menu-class' placeholderClassName='placeholder-class' options={depositWallets} onChange={(values) => setTradeWallet(values)} placeholder="Select wallet address" />
                     </div>
-                    <div className='card-panel w-49 d-flex justify-content-center'>
+                    <div className={`card-panel ${isMobile ? 'w-100' : 'w-49'} d-flex justify-content-center`}>
                         <img src={docs} className='mx-3 mt-1' alt='logo' width={30} height={30} />
-                        <input type='text' placeholder='Enter target wallet address' value={targetWallet} onChange={(e) => setTargetWallet(e.target.value)} className='form-control main-input w-50' /></div>
+                        <input type='text' placeholder='Enter target wallet address' value={targetWallet} onChange={(e) => setTargetWallet(e.target.value)} className={`form-control main-input ${isMobile ? 'w-100' : 'w-50'}`} /></div>
                     </div>
                     <div>
-                        <div className='card-panel-muted text-center d-flex justify-content-between'>
-                            <div className='d-flex justify-content-center w-50'>
-                                <div className='d-flex flex-column w-50'>
+                        <div className='card-panel-muted text-center d-flex justify-content-between flex-wrap'>
+                            <div className={`d-flex justify-content-center flex-wrap ${isMobile ? 'w-100' : 'w-50'}`}>
+                                <div className={`d-flex flex-column ${isMobile ? 'w-100' : 'w-50'}`}>
                                     <p className='text-danger text-italic mb-0'>You can deposit minimum 0.001 SOL!</p>   
                                     <h5 className='mx-3 mt-2'>User balance : {userBalance}</h5>
                                 </div>
                                 <div className='align-self-center d-flex'>
-                                        <input
+                                    <input
                                         type="number"
                                         value={depositValue}
                                         onChange={(e) => setDepositValue(e.target.value)}
                                         autoFocus
-                                        className="main-input w-50 p-1"
+                                        className={`main-input ${isMobile ? 'w-100' : 'w-50'} p-1`}
                                         style={{ width: '50px' }}
                                     />
-                                    <div className='align-self-center'><div className='mx-3 btn btn-primary text-center' onClick={(e) => depositToken(e)}>Deposit</div></div>
                                 </div>
+                                <div className={`align-self-center w-100 ${isMobile ? 'mt-3' : ''}`}><div className={`${isMobile ? '' : 'mx-3'} w-100 btn btn-primary text-center`} onClick={(e) => depositToken(e)}>Deposit</div></div>
                             </div>
-                            <div className='mt-2 align-self-center w-50'><h5>Deposited Amount: {depositedValue} </h5></div>
+                            <div className={`mt-2 align-self-center ${isMobile ? 'w-100' : 'w-50'}`}><h5>Deposited Amount: {depositedValue} </h5></div>
                         </div>   
                     </div>
                     <div>
@@ -302,7 +313,7 @@ const ContentTitle = () => {
                             </div>
                         </div>
                         <div className='d-flex flex-wrap justify-content-between'>
-                            <div className='card-panel w-49 d-flex justify-content-center'>
+                            <div className={`card-panel ${isMobile ? 'w-100' : 'w-49'} d-flex justify-content-center`}>
                                 <h5 className="mx-2 align-middle mt-1">
                                     Take Profit: + {
                                         isEditingTakeProfit ? (
@@ -322,10 +333,10 @@ const ContentTitle = () => {
                                     }
                                     <img src={pencil} alt='logo' className='cursor-pointer' width={30} height={30} onClick={() => setIsEditingTakeProfit(true)} /> % </h5>
                             </div>
-                            <div className={`card-panel w-49 d-flex justify-content-center ${isTakeProfit ? 'bg-active-green text-success' : 'text-danger'}`} onClick={() => setIsTakeProfit(!isTakeProfit)}>
+                            <div className={`card-panel ${isMobile ? 'w-100' : 'w-49'} d-flex justify-content-center ${isTakeProfit ? 'bg-active-green text-success' : 'text-danger'}`} onClick={() => setIsTakeProfit(!isTakeProfit)}>
                                 <h4 className="mx-2 align-middle mt-2">{isTakeProfit ? 'On' : 'Off'}</h4>
                             </div>
-                            <div className='card-panel w-49 d-flex justify-content-center'>
+                            <div className={`card-panel ${isMobile ? 'w-100' : 'w-49'} d-flex justify-content-center`}>
                                 <h5 className="mx-2 align-middle mt-1">
                                 Stop Loss: - {
                                         isEditingStopLoss ? (
@@ -346,7 +357,7 @@ const ContentTitle = () => {
                                     <img src={pencil} alt='logo' className='cursor-pointer' width={30} height={30} onClick={() => setIsEditingStopLoss(true)} /> % 
                                 </h5>
                             </div>
-                            <div className={`card-panel w-49 d-flex justify-content-center ${isStopLoss ? 'bg-active-green text-success' : 'text-danger'}`} onClick={() => setIsStopLoss(!isStopLoss)}>
+                            <div className={`card-panel ${isMobile ? 'w-100' : 'w-49'} d-flex justify-content-center ${isStopLoss ? 'bg-active-green text-success' : 'text-danger'}`} onClick={() => setIsStopLoss(!isStopLoss)}>
                                 <h4 className="mx-2 align-middle mt-2">{isStopLoss ? 'On' : 'Off'}</h4>
                             </div>
                         </div>
@@ -361,9 +372,9 @@ const ContentTitle = () => {
             )}
             <hr className='my-3 text-white'/>
             
-            <div className='d-flex justify-content-center'>
+            <div className='d-flex justify-content-center flex-wrap'>
                 <h1 className='text-center text-white'>Trading Bots Data</h1> 
-                <h4 className='text-warning mx-4 mt-3'>Free Version</h4>
+                <h4 className={`text-warning mx-4 ${isMobile ? '' : 'mt-3'}`}>{userInfo.membership ? userInfo.membership.name : 'Free'} Version</h4>
             </div>
             {tradingBots.length > 0 && (
                 <div>

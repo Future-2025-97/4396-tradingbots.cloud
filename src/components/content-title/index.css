@@ -72,7 +72,17 @@
     padding: 5px 25px;
     border: 1px solid #50545a;
     border-radius: 5px;
-    width: 480px;
+    width: 100%;
+}
+.base-class-wallet {
+    width: 100%;
+    /* overflow-x: scroll; */
+    /* overflow-y: hidden; */
+}
+.base-class-wallet-mobile {
+    width: 80%;
+    /* overflow-x: scroll;
+    overflow-y: hidden; */
 }
 .placeholder-class {
     color: #ccd7e9;

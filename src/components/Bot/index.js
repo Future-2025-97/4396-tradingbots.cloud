@@ -9,6 +9,7 @@ import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 import { columns } from './column';
 import { toast } from 'react-toastify';
+import { useMediaQuery } from 'react-responsive';
 
 const Bot = ({bot, setTradingBots, userInfo}) => {
     const { 
@@ -24,6 +25,8 @@ const Bot = ({bot, setTradingBots, userInfo}) => {
         isFinished,
         depositPrice
     } = bot;
+
+    const isMobile = useMediaQuery({ query: '(max-width: 768px)' });
 
     const [loading, setLoading] = useState(true);
     const [targetBalance, setTargetBalance] = useState(0);
@@ -45,13 +48,11 @@ const Bot = ({bot, setTradingBots, userInfo}) => {
     const [profitPercentage, setProfitPercentage] = useState(0);
 
     const updateTradeWalletTokens = async (tradeWallet, isSafe) => {
-        console.log('userInfo---', userInfo);
         if(!isSafe) {
             const reqData = {
                 wallet: tradeWallet
             }
             const res = await api.botWorking(reqData);
-            console.log('res---', res);
         }
     };
 
@@ -60,10 +61,7 @@ const Bot = ({bot, setTradingBots, userInfo}) => {
         await updateTradeWalletTokens(tradeWallet, isSafe);
     };
     const closeBot = async (botId) => {
-        console.log('botId---', botId);
         const res = await api.closeBot(botId);
-        console.log('res---', res);
-        console.log('res.bot---', res.bot);
         let bot = [];
         bot.push(res.bot);
         setIsClosed(true);
@@ -73,29 +71,29 @@ const Bot = ({bot, setTradingBots, userInfo}) => {
         toast.success(`${res.msg}`);
     }
     const getDetectBalance = async () => {
-        console.log('userInfo---', userInfo);
         // if(isFinished) {
         //     return;
         // }
-        const {copyDetectResult, pasteDetectResult, safe} = await detectWallet(targetWallet, tradeWallet, userInfo);
-        setTargetBalance(copyDetectResult.totalTargetPrice);
-        setTradeBalance(pasteDetectResult.totalTradePrice);
-        setTargetSolToken(copyDetectResult.solTargetToken);
-        setTradeSolToken(pasteDetectResult.solTradeToken);
-        setTargetTotalTokenPrice(copyDetectResult.totalTargetTokenPrice);
-        setTradeTotalTokenPrice(pasteDetectResult.totalTradeTokenPrice);
-        setTargetTokens(copyDetectResult.updateCopyToken);
-        setTradeTokens(pasteDetectResult.updatePasteToken);
-        setIsSafe(safe.isSafe);
-        setLoading(false);
-        getUpdatedBalances(safe.isSafe);
-        const profitValue = pasteDetectResult.totalTradePrice - depositPrice;
-        const profitPercentageValue = (profitValue / depositPrice * 100).toFixed(4);
-        setProfit(profitValue);
-        setProfitPercentage(profitPercentageValue);
+        if(userInfo) {
+            const {copyDetectResult, pasteDetectResult, safe} = await detectWallet(targetWallet, tradeWallet, userInfo);
+            setTargetBalance(copyDetectResult.totalTargetPrice);
+            setTradeBalance(pasteDetectResult.totalTradePrice);
+            setTargetSolToken(copyDetectResult.solTargetToken);
+            setTradeSolToken(pasteDetectResult.solTradeToken);
+            setTargetTotalTokenPrice(copyDetectResult.totalTargetTokenPrice);
+            setTradeTotalTokenPrice(pasteDetectResult.totalTradeTokenPrice);
+            setTargetTokens(copyDetectResult.updateCopyToken);
+            setTradeTokens(pasteDetectResult.updatePasteToken);
+            setIsSafe(safe.isSafe);
+            setLoading(false);
+            getUpdatedBalances(safe.isSafe);
+            const profitValue = pasteDetectResult.totalTradePrice - depositPrice;
+            const profitPercentageValue = (profitValue / depositPrice * 100).toFixed(4);
+            setProfit(profitValue);
+            setProfitPercentage(profitPercentageValue);
+        }
     }
     useEffect(() => {
-        console.log('isFinished---', isFinished);
         setIsClosed(isFinished);
         setIsWithdraw(isFinished);
         const positionAmount = (targetTotalTokenPrice / (tradeBalance - process.env.REACT_APP_SOL_NORMAL_PRICE_FOR_SWAP)).toFixed(2);
@@ -111,10 +109,7 @@ const Bot = ({bot, setTradingBots, userInfo}) => {
     }, [targetWallet, userInfo]);
 
     const withdrawBot = async (botId, withdrawAddress) => {
-        console.log('botId---', botId);
-        console.log('withdrawAddress---', withdrawAddress);
         const res = await api.withdrawBot(botId, withdrawAddress);
-        console.log('res---', res);
         if(res.error === false) {
             setWithdrawModal(false);
             setIsWithdraw(false);
@@ -134,19 +129,19 @@ const Bot = ({bot, setTradingBots, userInfo}) => {
                         <h5><span className='text-pink'>User Wallet:</span> {walletAddress(userWallet)}</h5>
                     </div>
                 </div>
-                <div className='text-white d-flex justify-content-between'>
+                <div className='text-white d-flex justify-content-between flex-wrap'>
                     <h5><span className='text-primary'>Target Wallet:</span> {walletAddress(targetWallet)}</h5>
                     <h5><span className='text-primary'>Balance:</span> {targetBalance.toFixed(3)} $</h5>
                 </div>
-                <div className='text-white d-flex justify-content-between mt-3'>
+                <div className='text-white d-flex justify-content-between mt-3 flex-wrap'>
                     <h5><span className='text-warning'>Trade Wallet:</span> {walletAddress(tradeWallet)}</h5>
-                    <div className='text-white d-flex flex-column align-items-end'>
+                    <div className={`text-white d-flex flex-column ${isMobile ? 'align-items-start' : 'align-items-end'}`}>
                         <h5><span className='text-white'>Current Balance:</span> {tradeBalance.toFixed(3)} $</h5>
                         <h5><span className='text-white'>Old Balance:</span> {depositPrice} $</h5>
                         <h5><span className='text-success'>Profit:</span> {profit.toFixed(3)} $ <span className='text-yellow font-weight-bold'> ({profitPercentage}%)</span></h5>
                     </div>
                 </div>
-                <div className='text-white d-flex justify-content-between'>
+                <div className={`text-white d-flex justify-content-between ${isMobile ? 'mt-3' : ''}`}>
                     <h5><span className='text-warning'>Position Value:</span> {positionValue}</h5>
                 </div>
                 <div className='text-white d-flex justify-content-between'>
@@ -154,13 +149,13 @@ const Bot = ({bot, setTradingBots, userInfo}) => {
                 </div>
                 <div className='d-flex justify-content-between'>                    
                     
-                    <div className='text-white d-flex'>
+                    <div className='text-white d-flex flex-wrap'>
                         <h5><span className='text-warning'>Take Profit:</span> {isTakeProfit ? <span className='text-success'>On</span> : <span className='text-danger'>Off</span>}</h5>
-                        <h5 className='mx-2'><span className='text-warning'>Value:</span> {takeProfit} %</h5>
+                        <h5 className={`${isMobile ? '' : 'mx-4'}`}><span className='text-warning'>Value:</span> {takeProfit} %</h5>
                     </div>
-                    <div className='text-white d-flex'>
+                    <div className='text-white d-flex flex-wrap'>
                         <h5><span className='text-warning'>Stop Loss:</span> {isStopLoss ? <span className='text-success'>On</span> : <span className='text-danger'>Off</span>}</h5>
-                        <h5 className='mx-2'><span className='text-warning'>Value:</span> {stopLoss} %</h5>
+                        <h5 className={`${isMobile ? '' : 'mx-4'}`}><span className='text-warning'>Value:</span> {stopLoss} %</h5>
                     </div>
                 </div>     
                 <div className='d-flex justify-content-start'>
@@ -211,13 +206,29 @@ const Bot = ({bot, setTradingBots, userInfo}) => {
                     <div className='text-white'>
                         <div className='text-primary'>Total Token Price: <span className='text-white font-weight-bold'>{targetTotalTokenPrice.toFixed(3)} $ </span></div>
                         {userInfo && (
-                            <DataTable
-                                columns={columns}
-                            data={targetTokens}
-                            customStyles={customStyles}
-                            pagination
-                                responsive
-                            />
+                            <>
+                                {isMobile ? (
+                                    <DataTable
+                                        responsive
+                                        // responsiveWrapperClassName='table-responsive'
+                                        columns={columns}
+                                        data={targetTokens}
+                                        customStyles={customStyles}
+                                        pagination
+                                        // allowOverflow={true}
+                                        // direction='auto'
+                                        // Add any mobile-specific styles or props here
+                                    />
+                                ) : (
+                                    <DataTable
+                                        responsive
+                                        columns={columns}
+                                        data={targetTokens}
+                                        customStyles={customStyles}
+                                        pagination
+                                    />
+                                )}
+                            </>
                         )}
                     </div>
                 )}

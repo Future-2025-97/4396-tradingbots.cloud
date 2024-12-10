@@ -49,13 +49,15 @@ router.post('/getMemberships', async (req, res) => {
 router.post('/update-membership', async (req, res) => {
   try {
     const { account, membershipId, signature } = req.body;
+    console.log(req.body);
     const txInfo = await verifyTransactionSignature(signature);
     const senderPublicKey = txInfo.transaction.message.accountKeys[0];
     const accountPublicKey = new PublicKey(account);
     const paymentDate = new Date();
 
     if (senderPublicKey.equals(accountPublicKey)) {
-      const user = await User.findOneAndUpdate({ userWallet: account }, { $set: { membership: membershipId, paymentDate: paymentDate } });
+      await User.findOneAndUpdate({ userWallet: account }, { $set: { membership: membershipId, paymentDate: paymentDate } })
+      const user = await User.findOne({ userWallet: account }).populate('membership');
       res.json({ user });
     } else {
       res.status(401).json({ message: 'Unauthorized' });

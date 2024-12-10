@@ -60,7 +60,6 @@ const api = {
     isSwapAvailable: async (tokenAddress) => {
         try {
             const response = await axios.post(baseUrl + '/api/bot/isSwapAvailable', { tokenAddress });
-            console.log('/////response---', response.data);
             return response;
         } catch (error) {
             console.error('Error checking swap availability:', error);
@@ -69,7 +68,6 @@ const api = {
     },
     botWorking: async (reqData) => {
         try {
-            console.log('reqData---', reqData);
             // const response = await axios.post(baseUrl + '/api/bot/sendSignal', reqData);
             // console.log('response---', response.data);
             // return response.data;
@@ -110,7 +108,6 @@ const api = {
 
     generateWalletAccount: async (account) => {
         try {
-            // console.log('**** generateWalletAccount ****');
             const response = await axios.post(baseUrl + '/api/trade/newCreateWallet', { wallet: account });
             if(response.data.status !== false){
                 const depositWallet = response.data.depositWallets;
@@ -130,12 +127,30 @@ const api = {
             return error;
         }
     },
+    getUserWalletCount: async (account) => {
+        try {
+            const response = await axios.post(baseUrl + '/api/users/getUserWalletCount', { wallet: account });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching user wallet count:', error);
+            return error;
+        }
+    },
     getUserInfo: async (account) => {
         try {
             const response = await axios.post(baseUrl + '/api/users/getUserInfo', { wallet: account });
             return response.data;
         } catch (error) {
             console.error('Error fetching user info:', error);
+            return error;
+        }
+    },
+    updateMembership: async (account, membershipId, signature) => {
+        try {
+            const response = await axios.post(baseUrl + '/api/membership/update-membership', { account, membershipId, signature });
+            return response.data;
+        } catch (error) {
+            console.error('Error updating membership:', error);
             return error;
         }
     },
