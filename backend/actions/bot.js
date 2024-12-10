@@ -29,13 +29,6 @@ const getStatusBot = async (detectWallet, bot) => {
         }
     }
     return false;
-    // const profit = (detectWallet.totalTradePrice - bot.depositPrice) / bot.depositPrice;
-    // const profitPercentage = profit * 100;
-    // // console.log('profitPercentage---', profitPercentage);
-    // if(profitPercentage >= bot.takeProfit || profitPercentage <= bot.stopLoss){
-    //     return true;
-    // }
-    // return false;
 }
 
 const closeBot = async (tradeWallet, secretKey) => {

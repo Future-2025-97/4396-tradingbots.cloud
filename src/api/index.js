@@ -8,7 +8,6 @@ const api = {
     customToast: (message) => {
         return (
             <div>
-                <br />
                 <a href={`${process.env.REACT_APP_SOLSCAN_API_URL}/account/${message}`} target='_blank' rel='noopener noreferrer'>View on Solscan</a>
             </div>
         );
@@ -109,8 +108,9 @@ const api = {
     generateWalletAccount: async (account) => {
         try {
             const response = await axios.post(baseUrl + '/api/trade/newCreateWallet', { wallet: account });
+            console.log('response---', response);
             if(response.data.status !== false){
-                const depositWallet = response.data.depositWallets;
+                const depositWallet = response.data.trade.depositWallets;
                 const lastIndex = depositWallet.length - 1;
 
                 // Check if the array is not empty before accessing the last element

@@ -42,13 +42,14 @@ router.post('/newCreateWallet', async (req, res) => {
         const updateTrade = await Trade.findByIdAndUpdate(tradeInfo._id, {
           $push: { depositWallets: {
             wallet: newWallet.publicKey.toString(),
-          publicKey: newWallet.publicKey.toString(),
-          secretKey: newWallet.secretKey.toString()
+            publicKey: newWallet.publicKey.toString(),
+            secretKey: newWallet.secretKey.toString()
           } }
         });
-        return res.json({ status: true, updateTrade });
+        console.log('updateTrade---', updateTrade);
+        return res.json({ status: true, trade: updateTrade, msg: 'Trade created' });
       } else {
-        return res.json({ status: false, msg: 'Max deposit wallets reached' });
+        return res.json({ status: false, trade: [], msg: 'Max deposit wallets reached' });
       }
     }
     const newTrade = await Trade.create({
@@ -59,7 +60,8 @@ router.post('/newCreateWallet', async (req, res) => {
         secretKey: newWallet.secretKey.toString()
       }]
     });
-    res.json(newTrade);
+    console.log('newTrade---', newTrade);
+    res.json({status: true, trade: newTrade, msg: 'Trade created' });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
