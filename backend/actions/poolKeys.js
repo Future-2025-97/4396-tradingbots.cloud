@@ -1,6 +1,5 @@
-const { LIQUIDITY_STATE_LAYOUT_V4, MARKET_STATE_LAYOUT_V3, SWAP_LAYOUT, OPEN_ORDERS_LAYOUT } = require('@raydium-io/raydium-sdk');
+const { LIQUIDITY_STATE_LAYOUT_V4, MARKET_STATE_LAYOUT_V3 } = require('@raydium-io/raydium-sdk');
 const { PublicKey, Connection } = require('@solana/web3.js');
-const bs58 = require('bs58');
   
   const client = new Connection(process.env.QUICKNODE_RPC_URL, { commitment: 'confirmed' });
   

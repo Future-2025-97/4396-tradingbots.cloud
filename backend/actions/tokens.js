@@ -6,18 +6,12 @@ const {
     LAMPORTS_PER_SOL,
     sendAndConfirmTransaction,
     Keypair,
-    GetProgramAccountsFilter
 } = require('@solana/web3.js');
-const { getOrCreateAssociatedTokenAccount, transfer, TOKEN_PROGRAM_ID, createTransferInstruction } = require('@solana/spl-token');
+const { TOKEN_PROGRAM_ID } = require('@solana/spl-token');
 const axios = require('axios');
 
 const connection = new Connection(process.env.QUICKNODE_RPC_URL, 'confirmed');
 
-const getNumberDecimals = async (mintAddress) => {
-    const info = await connection.getParsedAccountInfo(new PublicKey(mintAddress));
-    const result = (info.value?.data).parsed.info.decimals;
-    return result;
-}
 const getTokenPrice = async (mintAddress) => {
     try {
         const tokenInfo = await axios.get(`${process.env.DEXSCREENER_API_URL}${mintAddress}`);
@@ -118,7 +112,6 @@ const getTokenInfo = async (wallet) => {
             const birdEyeUrl = `${process.env.BIRD_EYE_URL}/defi/multi_price?check_liquidity=1&include_liquidity=true`;
             const requestDataString = chunk.join(',');
 
-            // console.log('requestDataString---', requestDataString);
             const response = await fetchWithRetry(birdEyeUrl, {
                 method: 'POST',
                 headers: {

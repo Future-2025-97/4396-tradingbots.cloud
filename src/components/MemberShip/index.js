@@ -14,14 +14,13 @@ import bigInt from "big-integer";
 import { getUserBalance } from '../../actions/wallet';
 import { toast } from 'react-toastify';
 import api from '../../api';
-import axios from 'axios';
 
 const quickNodeUrl = process.env.REACT_APP_QUICKNODE_URL;
 const connection = new Connection(quickNodeUrl, 'confirmed');
 
 const Membership = ({ memberShipInfo, userInfo, account }) => {
     const [newMemberShipInfo, setNewMemberShipInfo] = useState([]);
-    const { publicKey, sendTransaction } = useWallet();
+    const { sendTransaction } = useWallet();
     
     const today = new Date();
     const oneMonthLater = new Date(today);
@@ -98,7 +97,7 @@ const Membership = ({ memberShipInfo, userInfo, account }) => {
                 { newMemberShipInfo.length > 0 && newMemberShipInfo.map((info) => {
                     return (
                         <div className='text-center member-ship-item' key={info._id}>
-                            {info.typeOfMembership === 0 ? <h4 className='text-grey-light font-weight-bold'>Free Version</h4> : info.typeOfMembership === 1 ? <h4 className='text-success font-weight-bold'>Pro Version</h4> : <h4 className='text-warning font-weight-bold'>VIP Version</h4>}
+                            {info.typeOfMembership === 0 ? <h4 className='text-grey-light font-weight-bold'>Free Version</h4> : info.typeOfMembership === 1 ? <h4 className='text-success font-weight-bold'>Professional Version</h4> : <h4 className='text-warning font-weight-bold'>VIP Version</h4>}
                             <div className='text-white'>
                                 <span className='text-warning font-size-24'>{info.price}</span> SOL
                                 <h5 className='text-white'>Available token: {info.maxCopyTokens}</h5> 

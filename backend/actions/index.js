@@ -2,7 +2,7 @@ require('dotenv/config');
 const { swapConfig } = require('./swapConfig'); // Import the configuration
 const raydiumSwap = require('./swapBaseIn');
 const { Wallet } = require('@coral-xyz/anchor');
-const { Connection, PublicKey, Keypair, Transaction, VersionedTransaction, TransactionMessage } = require('@solana/web3.js');
+const { Keypair } = require('@solana/web3.js');
 const axios = require('axios');
 const { verifyTransactionSignature } = require('./transaction');
 

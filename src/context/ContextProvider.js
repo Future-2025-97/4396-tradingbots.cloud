@@ -9,7 +9,6 @@ import { NetworkConfigurationProvider, useNetworkConfiguration } from './Network
 import {
     WalletModalProvider
 } from '@solana/wallet-adapter-react-ui';
-import { useWallet } from '@solana/wallet-adapter-react'; // Import useWallet
 const WalletContextProvider = ({ children }) => {
     const { autoConnect } = useAutoConnect();
     const { networkConfiguration } = useNetworkConfiguration();

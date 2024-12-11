@@ -1,14 +1,7 @@
-const { 
-    Connection, 
-} = require('@solana/web3.js');
 const { getTokenInfo } = require('./tokens');
 const axios = require('axios');
 const { mergeArraysWithDuplicates } = require('./array');
 const raydiumSwap = require('./swapBaseIn');
-
-
-const quickNode = process.env.QUICKNODE_RPC_URL;
-const connection = new Connection(quickNode, 'confirmed');
 const {swapSOLToToken, swapTokenToSOL} = require('./index');
 
 const solPrice = async (amount) => {

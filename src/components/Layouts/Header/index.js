@@ -1,12 +1,8 @@
 import React, { useContext, useEffect, useState } from 'react';
 import './index.css';
 import logo from '../../../source/img/header/icon.png';
-import { Connection, clusterApiUrl, PublicKey } from '@solana/web3.js';
-import { walletAddress } from '../../../actions/wallet';
 import { StoreContext } from '../../../context/PageStore';
 import api from '../../../api';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { useWallet } from '@solana/wallet-adapter-react';
 import {
     WalletMultiButton

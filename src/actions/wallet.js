@@ -418,84 +418,88 @@ const getIsPositionSafe = (updateCopyToken, updatePasteToken, positionValue) => 
 }
 
 const isSafeBalance = async (copyDetectResult, pasteDetectResult) => {
-   
-    let isSafe = false;
-    const requestData = [];
-    const {isNonCopyToken, updateCopyToken, totalTargetTokenPrice, solTargetToken} = copyDetectResult;
-    const {isNonPasteToken, updatePasteToken, totalTradeTokenPrice, solTradeToken} = pasteDetectResult;
-    const positionValue = totalTargetTokenPrice / (totalTradeTokenPrice + solTradeToken.price - process.env.REACT_APP_SOL_NORMAL_PRICE_FOR_SWAP);
-    const isSameToken = isSameTokenAvailable(updateCopyToken, updatePasteToken);
-    const isPosition = isPositionAvailable(updateCopyToken, updatePasteToken, positionValue);
-    const isPositionSafe = getIsPositionSafe(updateCopyToken, updatePasteToken, positionValue);
-    
-    if(solTradeToken.price > process.env.REACT_APP_SOL_MIN_PRICE_FOR_SWAP && updateCopyToken.length === updatePasteToken.length && isSameToken && !isPosition && isNonCopyToken === isNonPasteToken && isPositionSafe) {
-        isSafe = true;
-    } 
+    try {
+        let isSafe = false;
+        const requestData = [];
+        const {isNonCopyToken, updateCopyToken, totalTargetTokenPrice, solTargetToken} = copyDetectResult;
+        const {isNonPasteToken, updatePasteToken, totalTradeTokenPrice, solTradeToken} = pasteDetectResult;
+        const positionValue = totalTargetTokenPrice / (totalTradeTokenPrice + solTradeToken.price - process.env.REACT_APP_SOL_NORMAL_PRICE_FOR_SWAP);
+        const isSameToken = isSameTokenAvailable(updateCopyToken, updatePasteToken);
+        const isPosition = isPositionAvailable(updateCopyToken, updatePasteToken, positionValue);
+        const isPositionSafe = getIsPositionSafe(updateCopyToken, updatePasteToken, positionValue);
+        
+        if(solTradeToken.price > process.env.REACT_APP_SOL_MIN_PRICE_FOR_SWAP && updateCopyToken.length === updatePasteToken.length && isSameToken && !isPosition && isNonCopyToken === isNonPasteToken && isPositionSafe) {
+            isSafe = true;
+        } 
 
-    if (solTradeToken.price <= process.env.REACT_APP_SOL_MIN_PRICE_FOR_SWAP) {
-        let msg = 'Sol balance for trader is too low for swap';
-        let index = 1;
-        isSafe = false;
-        requestData.push({
-            msg: msg,
-            index: index
-        });
+        if (solTradeToken.price <= process.env.REACT_APP_SOL_MIN_PRICE_FOR_SWAP) {
+            let msg = 'Sol balance for trader is too low for swap';
+            let index = 1;
+            isSafe = false;
+            requestData.push({
+                msg: msg,
+                index: index
+            });
+        }
+        if((updateCopyToken.length == 0 && updatePasteToken.length != 0) || (updateCopyToken.length != 0 && updatePasteToken.length == 0)) {
+            let msg = 'Copy token or paste token is empty';
+            let index = 2;
+            isSafe = false;
+            requestData.push({
+                msg: msg,
+                index: index
+            });
+        }
+        if (isNonCopyToken !== isNonPasteToken) {
+            let msg = 'Copy and paste token didn\'t matched';
+            let index = 3;
+            isSafe = false;
+            requestData.push({
+                msg: msg,
+                index: index
+            });
+        }
+        if (updateCopyToken.length !== updatePasteToken.length) {
+            let msg = 'Copy and paste token length are not same';
+            let index = 4;
+            isSafe = false;
+            requestData.push({
+                msg: msg,
+                index: index
+            });
+        }
+        if (!isSameToken) {
+            let msg = 'Same token is not allowed';
+            let index = 5;  
+            isSafe = false;
+            requestData.push({
+                msg: msg,
+                index: index
+            });
+        }
+        if (isPosition) {
+            let msg = 'Position balance has been damaged';
+            let index = 6; 
+            isSafe = false;
+            requestData.push({
+                msg: msg,
+                index: index
+            });
+        }
+        if (!isPositionSafe) {
+            let msg = 'Position balance has been damaged';
+            let index = 7;
+            isSafe = false;
+            requestData.push({
+                msg: msg,
+                index: index
+            });
+        }    
+        return {isSafe, requestData};
+    } catch (error) {
+        console.error('Error fetching portfolio:', error);
+        return {isSafe: false, requestData: []};
     }
-    if((updateCopyToken.length == 0 && updatePasteToken.length != 0) || (updateCopyToken.length != 0 && updatePasteToken.length == 0)) {
-        let msg = 'Copy token or paste token is empty';
-        let index = 2;
-        isSafe = false;
-        requestData.push({
-            msg: msg,
-            index: index
-        });
-    }
-    if (isNonCopyToken !== isNonPasteToken) {
-        let msg = 'Copy and paste token didn\'t matched';
-        let index = 3;
-        isSafe = false;
-        requestData.push({
-            msg: msg,
-            index: index
-        });
-    }
-    if (updateCopyToken.length !== updatePasteToken.length) {
-        let msg = 'Copy and paste token length are not same';
-        let index = 4;
-        isSafe = false;
-        requestData.push({
-            msg: msg,
-            index: index
-        });
-    }
-    if (!isSameToken) {
-        let msg = 'Same token is not allowed';
-        let index = 5;  
-        isSafe = false;
-        requestData.push({
-            msg: msg,
-            index: index
-        });
-    }
-    if (isPosition) {
-        let msg = 'Position balance has been damaged';
-        let index = 6; 
-        isSafe = false;
-        requestData.push({
-            msg: msg,
-            index: index
-        });
-    }
-    if (!isPositionSafe) {
-        let msg = 'Position balance has been damaged';
-        let index = 7;
-        isSafe = false;
-        requestData.push({
-            msg: msg,
-            index: index
-        });
-    }    
-    return {isSafe, requestData};
 }
 
 export const detectWallet = async (targetWallet, tradeWallet, userInfo) => {

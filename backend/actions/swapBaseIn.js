@@ -1,5 +1,5 @@
 // src/RaydiumSwap.js
-const { Connection, PublicKey, Keypair, Transaction, VersionedTransaction, TransactionMessage } = require('@solana/web3.js');
+const { Connection, PublicKey, Transaction, VersionedTransaction, TransactionMessage } = require('@solana/web3.js');
 const {
   Liquidity,
   jsonInfo2PoolKeys,
@@ -114,18 +114,6 @@ const findPoolInfoForTokens = (mintA, mintB) => {
   }
 }
 
-
-/**
- * Builds a swap transaction.
- * @async
- * @param {string} toToken - The mint address of the token to receive.
- * @param {number} amount - The amount of the token to swap.
- * @param {Object} poolKeys - The liquidity pool keys.
- * @param {number} [maxLamports=100000] - The maximum lamports to use for transaction fees.
- * @param {boolean} [useVersionedTransaction=true] - Whether to use a versioned transaction.
- * @param {'in' | 'out'} [fixedSide='in'] - The fixed side of the swap ('in' or 'out').
- * @returns {Promise<Transaction | VersionedTransaction>} The constructed swap transaction.
- */
 const getSwapTransaction = async (
   toToken,
   // fromToken: string,
@@ -192,13 +180,6 @@ const getSwapTransaction = async (
     return null;
   }
 }
-
-/**
- * Sends a legacy transaction.
- * @async
- * @param {Transaction} tx - The transaction to send.
- * @returns {Promise<string>} The transaction ID.
- */
 const sendLegacyTransaction = async (tx, maxRetries) => {
   try{
     const txid = await connection.sendTransaction(tx, [wallet.payer], {
@@ -212,13 +193,6 @@ const sendLegacyTransaction = async (tx, maxRetries) => {
     return null;
   }
 }
-
-/**
- * Sends a versioned transaction.
- * @async
- * @param {VersionedTransaction} tx - The versioned transaction to send.
- * @returns {Promise<string>} The transaction ID.
- */
 const sendVersionedTransaction = async (tx, maxRetries, wallet) => {
   try{
     const txid = await connection.sendTransaction(tx, {
@@ -232,13 +206,6 @@ const sendVersionedTransaction = async (tx, maxRetries, wallet) => {
     return null;
   }
 }
-
-/**
- * Simulates a versioned transaction.
- * @async
- * @param {VersionedTransaction} tx - The versioned transaction to simulate.
- * @returns {Promise<any>} The simulation result.
- */
 const simulateLegacyTransaction = async (tx, wallet) => {
   try{
     const txid = await connection.simulateTransaction(tx, [wallet.payer]);
@@ -249,12 +216,6 @@ const simulateLegacyTransaction = async (tx, wallet) => {
   }
 }
 
-/**
- * Simulates a versioned transaction.
- * @async
- * @param {VersionedTransaction} tx - The versioned transaction to simulate.
- * @returns {Promise<any>} The simulation result.
- */
 const simulateVersionedTransaction = async (tx) => {
   try{
     const txid = await connection.simulateTransaction(tx);
@@ -265,11 +226,6 @@ const simulateVersionedTransaction = async (tx) => {
   }
 }
 
-/**
- * Gets a token account by owner and mint address.
- * @param {PublicKey} mint - The mint address of the token.
- * @returns {TokenAccount} The token account.
- */
 const getTokenAccountByOwnerAndMint = (mint) => {
   try{
     return {
@@ -285,15 +241,6 @@ const getTokenAccountByOwnerAndMint = (mint) => {
     return null;
   }
 }
-
-/**
- * Calculates the amount out for a swap.
- * @async
- * @param {Object} poolKeys - The liquidity pool keys.
- * @param {number} rawAmountIn - The raw amount of the input token.
- * @param {boolean} swapInDirection - The direction of the swap (true for in, false for out).
- * @returns {Promise<Object>} The swap calculation result.
- */
 const calcAmountOut = async (poolKeys, rawAmountIn, swapInDirection) => {
   try{
     const poolInfo =  await Liquidity.fetchInfo({ connection, poolKeys });

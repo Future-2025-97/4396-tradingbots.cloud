@@ -127,14 +127,12 @@ const ContentTitle = () => {
         try {
             const res = await api.generateWalletAccount(account);
             if(res.status === true){
-                console.log('res---', res);
                 if (Array.isArray(res.trade.depositWallets) && res.trade.depositWallets.length > 0) {
                     const singleWalletArray = [];
                     for (let i = 0; i < res.trade.depositWallets.length; i++) {
                         singleWalletArray.push(res.trade.depositWallets[i].wallet);
                     }
                     const updatedWallets = singleWalletArray.slice(0, depositWalletsCount);
-                    console.log('singleWalletArray---', singleWalletArray);
                     setDepositWallets(updatedWallets); // Return the new array containing one wallet object
                 }
             } else {

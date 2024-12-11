@@ -1,13 +1,4 @@
-import { 
-    Connection, 
-    PublicKey, 
-    LAMPORTS_PER_SOL,
-} from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-
-const quickNodeUrl = process.env.REACT_APP_QUICKNODE_URL;
-const connection = new Connection(quickNodeUrl, 'confirmed');
-
+    
 const checkIsUsing = (userInfo) => {
     if(userInfo) {
         if(userInfo.paymentDate === null) {

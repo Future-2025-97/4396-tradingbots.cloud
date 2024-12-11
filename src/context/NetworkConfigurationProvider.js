@@ -1,5 +1,5 @@
 import { useLocalStorage } from '@solana/wallet-adapter-react';
-import { createContext, FC, ReactNode, useContext } from 'react';
+import { createContext, useContext } from 'react';
 
 export const NetworkConfigurationContext = createContext();
 

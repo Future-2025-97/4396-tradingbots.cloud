@@ -3,13 +3,11 @@ const router = express.Router();
 const Trade = require('../../models/Trade');
 const User = require('../../models/User');
 const Bot = require('../../models/Bot');
-const Membership = require('../../models/Membership');
 const { detectWallet, mainWorking, solPrice } = require('../../actions/main');
 const { sendToken } = require('../../actions/tokens');
 const raydiumSwap = require('../../actions/swapBaseIn');
 const axios = require('axios');
 const { closeBot, withdrawBot, getStatusBot } = require('../../actions/bot');
-const { getTokenInfo } = require('../../actions/tokens');
 
 router.post('/createTradingBot', async (req, res) => {
   try {

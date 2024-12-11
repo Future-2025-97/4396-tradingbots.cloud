@@ -1,5 +1,4 @@
 
-import { toast } from 'react-toastify';
 export const depositCheck = async (tradeWallet, targetWallet, depositValue) => {
     if(tradeWallet == null){
         return { error: true, msg: 'Please select trade wallet address' };
