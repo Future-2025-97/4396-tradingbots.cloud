@@ -60,7 +60,8 @@ const ContentTitle = () => {
 
     const [depositValue, setDepositValue] = useState(0);
     const [depositedValue, setDepositedValue] = useState(0);
-    const { publicKey, sendTransaction } = useWallet();
+    const { publicKey, sendTransaction, wallet } = useWallet();
+    const supportedTransactionVersions = wallet?.adapter.supportedTransactionVersions;
     const [tradingBots, setTradingBots] = useState([]);
 
     useEffect(() => {
@@ -101,10 +102,8 @@ const ContentTitle = () => {
             setTradingBots(bots);
         }
         const fetchMemberShipInfo = async () => {   
-            if(account){    
-                const membership = await api.getMemberShipInfo(account);
-                setMemberShipInfo(membership);
-            }
+            const membership = await api.getMemberShipInfo();
+            setMemberShipInfo(membership);
         }        
         fetchDepositWallets();
         fetchBots();
@@ -152,6 +151,8 @@ const ContentTitle = () => {
                 toast.error(res.msg);
                 return;
             }
+            
+            if (!supportedTransactionVersions) console.log("Wallet doesn't support versioned transactions!");
             const senderPublicKey = new PublicKey(account);
             const recipientPublicKey = new PublicKey(tradeWallet.value);
             const senderBalance = await getUserBalance(account);
@@ -162,30 +163,30 @@ const ContentTitle = () => {
                 return; // Exit the function if funds are insufficient
             }
              // Create instructions to send, in this case a simple transfer
-             const instructions = [
-                SystemProgram.transfer({
-                    fromPubkey: senderPublicKey,
-                    toPubkey: recipientPublicKey,
-                    lamports: bigInt(depositValueInLamports),
-                }),
-            ];
+             const {
+                context: { slot: minContextSlot },
+                value: { blockhash, lastValidBlockHeight },
+            } = await connection.getLatestBlockhashAndContext();
 
-            // Get the lates block hash to use on our transaction and confirmation
-            let latestBlockhash = await connection.getLatestBlockhash()
+            const message = new TransactionMessage({
+                payerKey: publicKey,
+                recentBlockhash: blockhash,
+                instructions: [
+                    SystemProgram.transfer({
+                        fromPubkey: senderPublicKey,
+                        toPubkey: recipientPublicKey,
+                        lamports: bigInt(depositValueInLamports),
+                    }),
+                ],
+            });
 
-            // Create a new TransactionMessage with version and compile it to legacy
-            const messageLegacy = new TransactionMessage({
-                payerKey: senderPublicKey,
-                recentBlockhash: latestBlockhash.blockhash,
-                instructions,
-            }).compileToLegacyMessage();
+            const transaction = new VersionedTransaction(message.compileToLegacyMessage());
 
-            // Create a new VersionedTransacction which supports legacy and v0
-            const transation = new VersionedTransaction(messageLegacy)
+            let signature = await sendTransaction(transaction, connection, { minContextSlot });
+            console.log('signature', signature);
 
-            // Send transaction and await for signature
-            let signature = await sendTransaction(transation, connection);
-            const confirmation = await connection.confirmTransaction(signature, { commitment: 'confirmed' });
+            const confirmation = await connection.confirmTransaction({ blockhash, lastValidBlockHeight, signature });
+            console.log('Transaction successful!', signature);
             if (confirmation.value.confirmationStatus === 'confirmed') {
                 setDepositedValue(depositValue);
             }
@@ -253,7 +254,7 @@ const ContentTitle = () => {
                 </div>
             </div>
             {
-                isOpenMemberShip && memberShipInfo.length > 0 && userInfo.membership !== null && (
+                isOpenMemberShip && memberShipInfo.length > 0 && (
                     <div>
                         <Membership memberShipInfo={memberShipInfo} userInfo={userInfo} account={account} />
                     </div>

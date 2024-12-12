@@ -14,13 +14,17 @@ import bigInt from "big-integer";
 import { getUserBalance } from '../../actions/wallet';
 import { toast } from 'react-toastify';
 import api from '../../api';
+import {
+    WalletMultiButton
+} from '@solana/wallet-adapter-react-ui';
 
 const quickNodeUrl = process.env.REACT_APP_QUICKNODE_URL;
 const connection = new Connection(quickNodeUrl, 'confirmed');
 
 const Membership = ({ memberShipInfo, userInfo, account }) => {
-    const [newMemberShipInfo, setNewMemberShipInfo] = useState([]);
-    const { sendTransaction } = useWallet();
+    const [newMemberShipInfo, setNewMemberShipInfo] = useState([]);    
+    const { publicKey, sendTransaction, wallet } = useWallet();
+    const supportedTransactionVersions = wallet?.adapter.supportedTransactionVersions;
     
     const today = new Date();
     const oneMonthLater = new Date(today);
@@ -28,7 +32,6 @@ const Membership = ({ memberShipInfo, userInfo, account }) => {
 
     const twoWeeksLater = new Date(today);
     twoWeeksLater.setDate(today.getDate() + 14); 
-
     
     useEffect(() => {
         const fetchMemberShipInfo = async () => {
@@ -45,6 +48,7 @@ const Membership = ({ memberShipInfo, userInfo, account }) => {
             if(isUsing){
                 return;
             }
+            if (!supportedTransactionVersions) console.log("Wallet doesn't support versioned transactions!");
             const senderPublicKey = new PublicKey(account);
             const recipientPublicKey = new PublicKey(process.env.REACT_APP_ADMIN_WALLET_ADDRESS);
             const senderBalance = await getUserBalance(account);
@@ -55,33 +59,28 @@ const Membership = ({ memberShipInfo, userInfo, account }) => {
                 console.error('Insufficient funds for the transaction.');
                 return; // Exit the function if funds are insufficient
             }
+            const {
+                context: { slot: minContextSlot },
+                value: { blockhash, lastValidBlockHeight },
+            } = await connection.getLatestBlockhashAndContext();
 
-            const instructions = [
-                SystemProgram.transfer({
-                    fromPubkey: senderPublicKey,
-                    toPubkey: recipientPublicKey,
-                    lamports: bigInt(depositValueInLamports),
-                }),
-            ];
+            const message = new TransactionMessage({
+                payerKey: publicKey,
+                recentBlockhash: blockhash,
+                instructions: [
+                    SystemProgram.transfer({
+                        fromPubkey: senderPublicKey,
+                        toPubkey: recipientPublicKey,
+                        lamports: bigInt(depositValueInLamports),
+                    }),
+                ],
+            });
 
-            // Get the lates block hash to use on our transaction and confirmation
-            let latestBlockhash = await connection.getLatestBlockhash()
+            const transaction = new VersionedTransaction(message.compileToLegacyMessage());
+            let signature = await sendTransaction(transaction, connection, { minContextSlot });
+            const confirmation = await connection.confirmTransaction({ blockhash, lastValidBlockHeight, signature });
 
-            // Create a new TransactionMessage with version and compile it to legacy
-            const messageLegacy = new TransactionMessage({
-                payerKey: senderPublicKey,
-                recentBlockhash: latestBlockhash.blockhash,
-                instructions,
-            }).compileToLegacyMessage();
-
-            // Create a new VersionedTransacction which supports legacy and v0
-            const transation = new VersionedTransaction(messageLegacy)
-
-            // Send transaction and await for signature
-            let signature = await sendTransaction(transation, connection);
-            const confirmation = await connection.confirmTransaction(signature, { commitment: 'confirmed' });
-
-            if (confirmation.value.confirmationStatus === 'confirmed') {   
+            if (confirmation.value.err === null) {   
                 const updatedUserInfo = await api.updateMembership(account, membershipId, signature);                     
                 if(updatedUserInfo){
                     window.location.reload();          
@@ -106,6 +105,23 @@ const Membership = ({ memberShipInfo, userInfo, account }) => {
                                 {info.typeOfMembership == 0 ? <div className={`btn btn-primary mt-3 ${info.isUsing ? 'disabled' : 'disabled'}`}>{info.isUsing ? 'Using Now' : 'End'}</div> : <div className={`btn btn-success mt-3 ${info.isUsing ? 'disabled' : ''}`} onClick={() => getMemberShip(info.price, info._id, info.isUsing)}>{info.isUsing ? 'Using Now' : 'Buy Now'}</div>}
                              </div>
                         </div>  
+                    )
+                })}
+                {newMemberShipInfo.length === 0 && memberShipInfo.map((info) => {
+                    return (
+                        <div className='text-center member-ship-item' key={info._id}>
+                            {info.typeOfMembership === 0 ? <h4 className='text-grey-light font-weight-bold'>Free Version</h4> : info.typeOfMembership === 1 ? <h4 className='text-success font-weight-bold'>Professional Version</h4> : <h4 className='text-warning font-weight-bold'>VIP Version</h4>}
+                            <div className='text-white'>
+                                <span className='text-warning font-size-24'>{info.price}</span> SOL
+                                <h5 className='text-white'>Available token: {info.maxCopyTokens}</h5> 
+                                <h5 className='text-white'>Max bots: {info.maxBots}</h5>
+                                <p className='text-white'>Available copy trades period: {info.period} days</p> 
+                                {info.typeOfMembership == 0 ? <div>
+                                    <WalletMultiButton/>
+                                </div> : <div>
+                                <WalletMultiButton/></div>}
+                             </div>
+                        </div>
                     )
                 })}
             </div>

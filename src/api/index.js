@@ -154,9 +154,9 @@ const api = {
             return error;
         }
     },
-    getMemberShipInfo: async (account) => {
+    getMemberShipInfo: async () => {
         try {
-            const response = await axios.post(baseUrl + '/api/membership/getMemberships', { wallet: account });
+            const response = await axios.get(baseUrl + '/api/membership/getMemberships');
             return response.data;
         } catch (error) {
             console.error('Error fetching membership info:', error);

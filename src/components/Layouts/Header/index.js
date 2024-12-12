@@ -7,6 +7,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import {
     WalletMultiButton
 } from '@solana/wallet-adapter-react-ui';
+import { useLocalStorage } from '@solana/wallet-adapter-react';
 import { useAutoConnect } from '../../../context/AutoConnectProvider';
 import { useMediaQuery } from 'react-responsive';
 
@@ -16,22 +17,40 @@ const Header = () => {
     
     const { account, setAccount } = useContext(StoreContext);
     const [ isConnected, setIsConnected ] = useState(false);
-    const { connected, wallet, connect, disconnect } = useWallet();
-    
+    const { connected, wallet, connect, disconnect, publicKey } = useWallet();
+
     useEffect(() => {
         if (connected || autoConnect) {
             setIsConnected(true);
             const getWallet = async () => {
-                const resp = await window.solana.connect();
-                const walletAddress = resp.publicKey.toString();  
-                localStorage.setItem('wallet', walletAddress);        
-                await api.signUp(walletAddress);
-                setAccount(walletAddress);
-                setIsConnected(true);
+                // Check if window.solana is defined
+                if (window.solana) {
+                    try {
+                        console.log('window.solana---', window.solana);
+                        const resp = await window.solana.connect();
+                        const walletAddress = resp.publicKey.toString(); 
+                        // const [account, setAccount] = useLocalStorage('account', walletAddress);
+                        localStorage.setItem('wallet', walletAddress);        
+                        await api.signUp(walletAddress);
+                        setAccount(walletAddress);
+                        setIsConnected(true);
+                    } catch (error) {
+                        console.error('Connection failed:', error);
+                        // Handle connection error (e.g., show a toast notification)
+                    }
+                } else {
+                    if (publicKey) {
+                        console.log('publicKey---', publicKey);
+                        const walletAddress = publicKey.toString();
+                        localStorage.setItem('wallet', walletAddress);   
+                        setAccount(walletAddress);
+                        api.signUp(walletAddress);
+                    }
+                }
             }
             getWallet();
         }
-    }, []);
+    }, [publicKey]);
 
     // const disconnectWallet = () => {
     //     localStorage.removeItem('wallet');

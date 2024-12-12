@@ -36,7 +36,7 @@ router.post('/delete', async (req, res) => {
     res.status(500).send('Server error');
   }
 });
-router.post('/getMemberships', async (req, res) => {
+router.get('/getMemberships', async (req, res) => {
   try {
     const memberships = await Membership.find();
     const updatedMemberships = memberships.sort((a, b) => a.typeOfMembership - b.typeOfMembership);

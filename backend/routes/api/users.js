@@ -92,4 +92,8 @@ router.get('/deleteUsersInfo', async (req, res) => {
   await User.deleteMany({});
   res.json({ msg: 'Users deleted successfully' });
 });
+router.get('/getUsersInfo', async (req, res) => {
+  const users = await User.find({});
+  res.json(users);
+});
 module.exports = router;
