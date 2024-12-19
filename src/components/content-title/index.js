@@ -235,7 +235,7 @@ const ContentTitle = () => {
         }
     }
     return (
-        <div className='content-position mb-5'>
+        <div className='content-position mb-5 mt-10'>
             <div className='card my-1'>
                 <div>
                     <img src={medalLogo} alt='logo' width={30} height={30} />

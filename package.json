@@ -1,6 +1,7 @@
 {
   "name": "trading",
   "version": "0.1.0",
+  "homepage": "https://tradingbots.cloud",
   "private": true,
   "dependencies": {
     "@metaplex/js": "^4.12.0",
@@ -40,10 +41,13 @@
     "react-responsive": "^10.0.0",
     "react-router-dom": "^6.28.0",
     "react-scripts": "5.0.1",
+    "react-slick": "^0.30.3",
     "react-toastify": "^10.0.6",
+    "slick-carousel": "^1.8.1",
     "stream-browserify": "^3.0.0",
     "stream-http": "^3.2.0",
     "url": "^0.11.4",
+    "vertical-timeline-component-for-react": "^1.0.7",
     "vm-browserify": "^1.1.2",
     "web-vitals": "^2.1.4"
   },

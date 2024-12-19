@@ -1,7 +1,13 @@
 .header {
-    background-color: #ffffff;
+    background-color: #06111f;
     padding: 15px 10px;
-    color: #182633;
+    color: #00c4f4;
+    border-bottom: 1px solid #374d61;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
 }
 .btn-outline-main {
     border: 2px solid #182633;
@@ -14,3 +20,49 @@
 .font-weight-bold {
     font-weight: 700;
 }
+.text-grey-main {
+    color: #a4b4c3;
+}
+.description {
+    font-size: 19px;
+}
+.btn-app {
+    user-select: none;
+    -moz-user-select: none;
+    background: #040e1800;
+    border-radius: 70px;
+    display: inline-block;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    line-height: 1;
+    margin-bottom: 0;
+    padding: 12px 25px;
+    text-align: center;
+    text-transform: uppercase;
+    touch-action: manipulation;
+    vertical-align: middle;
+    white-space: nowrap;
+    box-shadow: 0px 6px 22px rgba(6, 34, 51, .22);
+    background-clip: padding-box;
+    position: relative;
+    cursor: pointer;
+}
+.btn-outline-start {
+    background-color: #1436597a;
+    color: #00c4f4;
+    border: 2px solid #00c4f4;
+    margin: -2px;
+    background: linear-gradient(90deg, var(--tg-primary-color) 0%, rgba(4, 12, 21, 1) 49%, var(--tg-primary-color) 100%);
+    border-radius: 70px;
+    transition: all .4s ease 0s;
+}
+.btn-outline-start:hover {
+    background-color: #1436597a;
+    color: #eefcff;
+    border: 2px solid #eefcff;
+}
+.header-logo-icon {
+    cursor: pointer;
+}
+

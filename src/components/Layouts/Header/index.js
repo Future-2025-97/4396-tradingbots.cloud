@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import './index.css';
+
 import logo from '../../../source/img/header/icon.png';
 import { StoreContext } from '../../../context/PageStore';
 import api from '../../../api';
@@ -7,6 +8,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import {
     WalletMultiButton
 } from '@solana/wallet-adapter-react-ui';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useLocalStorage } from '@solana/wallet-adapter-react';
 import { useAutoConnect } from '../../../context/AutoConnectProvider';
 import { useMediaQuery } from 'react-responsive';
@@ -14,11 +16,14 @@ import { useMediaQuery } from 'react-responsive';
 const Header = () => {
     const isMobile = useMediaQuery({ query: '(max-width: 600px)' })
     const { autoConnect } = useAutoConnect();
+    const location = useLocation();
+    const navigate = useNavigate();
     
+    const isHome = location.pathname === '/';
     const { account, setAccount } = useContext(StoreContext);
     const [ isConnected, setIsConnected ] = useState(false);
     const { connected, wallet, connect, disconnect, publicKey } = useWallet();
-
+    
     useEffect(() => {
         if (connected || autoConnect) {
             setIsConnected(true);
@@ -63,15 +68,16 @@ const Header = () => {
     return (
         <div className='header'>
             <div className='header-logo d-flex align-items-center justify-content-between container'>
-                <div className='header-logo-icon d-flex align-items-center'>
+                <div className='header-logo-icon d-flex align-items-center' onClick={() => {
+                    window.location.href = '/';
+                }}>
                     <img src={logo} alt="logo" width={50} height={50} />
-                    <h4 className='mb-0 font-weight-bold'>{isMobile ? '' : 'Solana Copy Trading Bot'}</h4>
+                    <h4 className='mb-0 mx-2'>{isMobile ? '' : 'Copy Trading Bot'}</h4>
                 </div>
                 <div>
-                    <WalletMultiButton/>
-                    {/* <div className='btn btn-outline-main' onClick={isConnected ? disconnectWallet : WalletConnector}>
-                        {account ? walletAddress(account) : 'Connect Wallet'}
-                    </div> */}
+                    {isHome ? <div className='btn-app btn-outline-start' onClick={() => {
+                        window.location.href = '/app';
+                    }}>Start App</div> : <WalletMultiButton/>}
                 </div>
             </div>
         </div>

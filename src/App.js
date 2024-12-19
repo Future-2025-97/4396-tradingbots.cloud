@@ -11,6 +11,7 @@ import { StoreProvider } from './context/PageStore';
 import Header from './components/Layouts/Header';
 import Footer from './components/Layouts/Footer';
 import Home from './views/Home';
+import Landing from './views/Landing';
 import ContextProvider from './context/ContextProvider';
 import { Buffer } from 'buffer';
 window.Buffer = Buffer; 
@@ -23,7 +24,8 @@ function App() {
         <React.Fragment>
           <Header />
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<Landing />} />
+            <Route path="/app" element={<Home />} />
           </Routes>
           <Footer />
         </React.Fragment>
